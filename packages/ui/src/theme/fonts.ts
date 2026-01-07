@@ -46,11 +46,11 @@ const fontFamily = {
 }
 
 const baselMedium = isWebPlatform
-  ? 'Basel, -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif'
+  ? "'Aleo', sans-serif"
   : fontFamily.sansSerif.medium
 
 const baselBook = isWebPlatform
-  ? 'Basel, -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif'
+  ? "'Aleo', sans-serif"
   : fontFamily.sansSerif.book
 
 const monospaceFontFamily = isWebPlatform

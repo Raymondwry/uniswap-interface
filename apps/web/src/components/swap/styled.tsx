@@ -5,9 +5,9 @@ import { AlertTriangleFilled } from 'ui/src/components/icons/AlertTriangleFilled
 export const PAGE_WRAPPER_MAX_WIDTH = 480
 
 export const PageWrapper = styled(Flex, {
-  pt: '$spacing8',
-  px: '$spacing8',
-  pb: '$spacing20',
+  pt: 0,
+  px: '$spacing24',
+  pb: '$spacing40',
   width: '100%',
   maxWidth: PAGE_WRAPPER_MAX_WIDTH,
   borderWidth: 1,

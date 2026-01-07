@@ -107,16 +107,20 @@ function SwapFormContent({
         
         {/* Original Swap+Settings button moved here to occupy space within the border */}
         {!hideSettings && (
-          <Flex row width="100%" height={50} justifyContent="space-between" alignItems="center" mb="$spacing2">
-            {/* Swap text */}
-            <Text variant="buttonLabel3" color="$neutral1" tag="h1">
-              Swap
-            </Text>
-            {/* Settings button */}
-            <SwapFormSettings settings={filteredSettings} isBridgeTrade={isBridgeTrade} position="static" adjustTopAlignment={false} adjustRightAlignment={false} />
-          </Flex>
+          <>
+            <Flex row width="100%" height={50} justifyContent="space-between" alignItems="center">
+              {/* Swap text */}
+              <Text variant="buttonLabel3" color="$neutral1" tag="h1">
+                Swap
+              </Text>
+              {/* Settings button */}
+              <SwapFormSettings settings={filteredSettings} isBridgeTrade={isBridgeTrade} position="static" adjustTopAlignment={false} adjustRightAlignment={false} />
+            </Flex>
+            {/* Border below Swap+Settings with 8px left/right extension */}
+            <Flex width="calc(100% + 48px)" height={1} backgroundColor="$surface3" ml={-24} mr={-24} />
+          </>
         )}
-        <Flex gap="$spacing2">
+        <Flex gap="$spacing4" mt="$spacing6">
           <SwapFormCurrencyInputPanel />
           <SwitchCurrenciesButton />
           <SwapFormCurrencyOutputPanel />

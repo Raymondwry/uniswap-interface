@@ -24,9 +24,9 @@ export function SwapFormScreenDetails(): JSX.Element {
               }
             `}</style>
         <Flex>
-          <Flex>
+          <Flex marginTop="$spacing6">
             <SwapFormWarningStoreContextProvider>
-              <SwapFormButton tokenColor={tokenColor} />
+              <SwapFormButton tokenColor={tokenColor}/>
               <SwapFormWarningModals />
             </SwapFormWarningStoreContextProvider>
           </Flex>

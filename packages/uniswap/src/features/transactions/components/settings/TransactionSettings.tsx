@@ -146,7 +146,7 @@ export function TransactionSettings({
           >
             <Flex>
               <Popover.Trigger>
-                <TouchableArea testID={testID ?? TestID.TransactionSettings} onPress={onPressTransactionSettings}>
+                <TouchableArea testID={testID ?? TestID.TransactionSettings} onPress={onPressTransactionSettings} width={32} height={32}>
                   {CustomSettingsButton ?? (
                     <TransactionSettingsButton
                       contentColor={iconColor}

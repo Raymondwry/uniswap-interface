@@ -207,7 +207,7 @@ export default function MigrateV2() {
           </AutoColumn>
         </Flex>
       </BodyWrapper>
-      <SwitchLocaleLink />
+      {/* <SwitchLocaleLink /> */}
     </Trace>
   )
 }

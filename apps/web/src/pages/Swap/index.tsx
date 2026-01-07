@@ -95,7 +95,7 @@ export default function SwapPage() {
           />
         </WebFORNudgeProvider>
       </PageWrapper>
-      {location.pathname === '/swap' && <SwitchLocaleLink />}
+      {/* {location.pathname === '/swap' && <SwitchLocaleLink />} */}
     </Trace>
   )
 }
