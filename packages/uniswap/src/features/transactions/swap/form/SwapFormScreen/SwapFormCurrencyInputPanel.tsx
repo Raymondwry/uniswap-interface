@@ -65,6 +65,7 @@ export function SwapFormCurrencyInputPanel(): JSX.Element {
     <Trace section={SectionName.CurrencyInputPanel}>
       <Flex
         animation="simple"
+        backgroundColor="$surface1"
         borderRadius="$rounded20"
         borderWidth="$spacing1"
         overflow="hidden"

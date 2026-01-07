@@ -64,10 +64,10 @@ export function PreferenceSettings({
   const languageInfo = useLanguageInfo(activeLanguage)
 
   const items: SettingItem[] = [
-    {
-      label: showThemeLabel ? t('themeToggle.theme') : undefined,
-      component: <ThemeSelector compact fullWidth={!showThemeLabel} />,
-    },
+    // {
+    //   label: showThemeLabel ? t('themeToggle.theme') : undefined,
+    //   component: <ThemeSelector compact fullWidth={!showThemeLabel} />,
+    // },
     {
       label: t('common.language'),
       component: (

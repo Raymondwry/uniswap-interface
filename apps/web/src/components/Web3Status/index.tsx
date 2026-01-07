@@ -65,28 +65,52 @@ const AddressAndChevronContainer = deprecatedStyled.div<{ $loading?: boolean }>`
   }
 `
 
+const ConnectButtonStyled = deprecatedStyled.button`
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 9px 16px;
+  width: 134px;
+  height: 36px;
+  background: #2362DD;
+  box-shadow: 0px 0px 20px -5px #2362DD;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  font-family: 'Aleo', sans-serif;
+  font-weight: 500;
+  font-size: 14px;
+  line-height: 20px;
+  color: #FFFFFF;
+  
+  &:hover {
+    opacity: 0.9;
+  }
+  
+  &:active {
+    opacity: 0.8;
+  }
+`
+
 const ExistingUserCTAButton = forwardRef<HTMLDivElement, { onPress: () => void }>(function ExistingUserCTAButton(
   { onPress },
   ref,
 ) {
   const { t } = useTranslation()
-
   const isEmbeddedWalletEnabled = useFeatureFlag(FeatureFlags.EmbeddedWallet)
   const isLogIn = isEmbeddedWalletEnabled
 
   return (
-    <Button
-      fill={false}
-      size="small"
-      variant="branded"
-      emphasis="primary"
-      tabIndex={0}
-      data-testid="navbar-connect-wallet"
-      ref={ref}
-      onPress={onPress}
-    >
-      {isLogIn ? t('nav.logIn.button') : t('common.connect.button')}
-    </Button>
+    <div ref={ref}>
+      <ConnectButtonStyled
+        type="button"
+        tabIndex={0}
+        data-testid="navbar-connect-wallet"
+        onClick={onPress}
+      >
+        {isLogIn ? t('nav.logIn.button') : t('common.connect.button')}
+      </ConnectButtonStyled>
+    </div>
   )
 })
 

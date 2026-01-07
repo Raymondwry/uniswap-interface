@@ -3,7 +3,6 @@ import { getExploreDescription, getExploreTitle } from 'pages/getExploreTitle'
 import { getPortfolioDescription, getPortfolioTitle } from 'pages/getPortfolioTitle'
 import { getAddLiquidityPageTitle, getPositionPageDescription, getPositionPageTitle } from 'pages/getPositionPageTitle'
 // High-traffic pages (index and /swap) should not be lazy-loaded.
-import Landing from 'pages/Landing'
 import Swap from 'pages/Swap'
 import { lazy, ReactNode, Suspense, useMemo } from 'react'
 import { matchPath, Navigate, Route, Routes, useLocation } from 'react-router'
@@ -127,7 +126,7 @@ export const routes: RouteDefinition[] = [
     getTitle: () => StaticTitlesAndDescriptions.UniswapTitle,
     getDescription: () => StaticTitlesAndDescriptions.SwapDescription,
     getElement: (args) => {
-      return args.browserRouterEnabled && args.hash ? <Navigate to={args.hash.replace('#', '')} replace /> : <Landing />
+      return args.browserRouterEnabled && args.hash ? <Navigate to={args.hash.replace('#', '')} replace /> : <Swap />
     },
   }),
   createRouteDefinition({
@@ -217,36 +216,36 @@ export const routes: RouteDefinition[] = [
     getDescription: () => i18n.t('title.createGovernanceTo'),
     getElement: () => <Navigate to="/vote/create-proposal" replace />,
   }),
-  createRouteDefinition({
-    path: '/buy',
-    getElement: () => <Swap />,
-    getTitle: () => StaticTitlesAndDescriptions.SwapTitle,
-  }),
-  createRouteDefinition({
-    path: '/sell',
-    getElement: () => <Swap />,
-    getTitle: () => StaticTitlesAndDescriptions.SwapTitle,
-  }),
+  // createRouteDefinition({
+  //   path: '/buy',
+  //   getElement: () => <Swap />,
+  //   getTitle: () => StaticTitlesAndDescriptions.SwapTitle,
+  // }),
+  // createRouteDefinition({
+  //   path: '/sell',
+  //   getElement: () => <Swap />,
+  //   getTitle: () => StaticTitlesAndDescriptions.SwapTitle,
+  // }),
   createRouteDefinition({
     path: '/send',
     getElement: () => <Swap />,
     getTitle: () => i18n.t('title.sendTokens'),
   }),
-  createRouteDefinition({
-    path: '/limits',
-    getElement: () => <Navigate to="/limit" replace />,
-    getTitle: () => i18n.t('title.placeLimit'),
-  }),
-  createRouteDefinition({
-    path: '/limit',
-    getElement: () => <Swap />,
-    getTitle: () => i18n.t('title.placeLimit'),
-  }),
-  createRouteDefinition({
-    path: '/buy',
-    getElement: () => <Swap />,
-    getTitle: () => StaticTitlesAndDescriptions.SwapTitle,
-  }),
+  // createRouteDefinition({
+  //   path: '/limits',
+  //   getElement: () => <Navigate to="/limit" replace />,
+  //   getTitle: () => i18n.t('title.placeLimit'),
+  // }),
+  // createRouteDefinition({
+  //   path: '/limit',
+  //   getElement: () => <Swap />,
+  //   getTitle: () => i18n.t('title.placeLimit'),
+  // }),
+  // createRouteDefinition({
+  //   path: '/buy',
+  //   getElement: () => <Swap />,
+  //   getTitle: () => StaticTitlesAndDescriptions.SwapTitle,
+  // }),
   createRouteDefinition({
     path: '/swap',
     getElement: () => <Swap />,

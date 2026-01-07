@@ -81,10 +81,12 @@ export function ThemeColorMetaUpdater() {
 }
 
 export function useIsDarkMode(): boolean {
-  const mode = useAtomValue(themeModeAtom)
-  const systemTheme = useAtomValue(systemThemeAtom)
+  // Force dark mode only
+  return true
+  // const mode = useAtomValue(themeModeAtom)
+  // const systemTheme = useAtomValue(systemThemeAtom)
 
-  return (mode === ThemeMode.AUTO ? systemTheme : mode) === ThemeMode.DARK
+  // return (mode === ThemeMode.AUTO ? systemTheme : mode) === ThemeMode.DARK
 }
 
 export function useDarkModeManager(): [boolean, (mode: ThemeMode) => void] {

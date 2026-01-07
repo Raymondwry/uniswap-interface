@@ -1,4 +1,4 @@
-import { Button, Flex, useIsShortMobileDevice } from 'ui/src'
+import { Button, Flex, styled, useIsShortMobileDevice } from 'ui/src'
 import { useCexTransferProviders } from 'uniswap/src/features/fiatOnRamp/useCexTransferProviders'
 import {
   useIsShowingWebFORNudge,
@@ -16,6 +16,33 @@ import { TestID } from 'uniswap/src/test/fixtures/testIDs'
 import { useEvent } from 'utilities/src/react/hooks'
 
 export const SWAP_BUTTON_TEXT_VARIANT = 'buttonLabel1'
+
+const WhiteButtonText = styled(Button.Text, {
+  color: '#FFFFFF',
+  '$group-item-hover': {
+    color: '#FFFFFF',
+  },
+})
+
+
+const GradientWrapper = styled(Flex, {
+  borderRadius: 12,
+  height: 60,
+  py: 16,
+  px: 0,
+  '$platform-web': {
+    background: 'linear-gradient(90.87deg, #2362DD -1.27%, #2C7FDD 47.58%, #AD81F1 99.78%)',
+    boxShadow: '0px 0px 20px -5px rgba(35, 98, 221, 0.5)',
+    cursor: 'pointer',
+    transition: 'opacity 0.2s ease',
+  },
+  hoverStyle: {
+    opacity: 0.9,
+  },
+  pressStyle: {
+    opacity: 0.8,
+  },
+})
 
 // TODO(SWAP-573): Co-locate button action/color/text logic instead of separating the very-coupled UI state
 export function SwapFormButton({ tokenColor }: { tokenColor?: string }): JSX.Element {
@@ -49,20 +76,31 @@ export function SwapFormButton({ tokenColor }: { tokenColor?: string }): JSX.Ele
     <Flex alignItems="center" gap={isShortMobileDevice ? '$spacing8' : '$spacing16'}>
       <SwapFormButtonTrace>
         <Flex row alignSelf="stretch">
-          <Button
-            variant={buttonVariant}
-            emphasis={buttonEmphasis}
-            // TODO(WALL-7186): make loading state more representative of the trade state
-            loading={shouldShowLoading}
-            isDisabled={disabled}
-            backgroundColor={buttonBackgroundColor}
-            size={isShortMobileDevice ? 'small' : 'large'}
-            testID={TestID.ReviewSwap}
-            animation="simple"
-            onPress={promptWebFORNudge ? setIsShowingWebFORNudgeHandler : handleOnReviewPress}
-          >
-            {buttonTextColor ? <Button.Text color={buttonTextColor}>{buttonText}</Button.Text> : buttonText}
-          </Button>
+          <GradientWrapper width="100%">
+            <Button
+              variant={buttonVariant}
+              emphasis={buttonEmphasis}
+              // TODO(WALL-7186): make loading state more representative of the trade state
+              loading={shouldShowLoading}
+              isDisabled={disabled}
+              backgroundColor="transparent"
+              size={isShortMobileDevice ? 'small' : 'large'}
+              testID={TestID.ReviewSwap}
+              onPress={promptWebFORNudge ? setIsShowingWebFORNudgeHandler : handleOnReviewPress}
+              width="100%"
+              borderRadius={12}
+              hoverStyle={{
+                backgroundColor: 'transparent',
+                borderColor: 'transparent',
+              }}
+              pressStyle={{
+                backgroundColor: 'transparent',
+                borderColor: 'transparent',
+              }}
+            >
+              <WhiteButtonText>{buttonText}</WhiteButtonText>
+            </Button>
+          </GradientWrapper>
         </Flex>
       </SwapFormButtonTrace>
     </Flex>

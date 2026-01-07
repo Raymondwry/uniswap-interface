@@ -1,7 +1,7 @@
 import type { BottomSheetView } from '@gorhom/bottom-sheet'
 import type { ComponentProps } from 'react'
 import type { FlexProps } from 'ui/src'
-import { Flex } from 'ui/src'
+import { Flex, Text } from 'ui/src'
 import { chainIdToPlatform } from 'uniswap/src/features/platforms/utils/chains'
 import type { TransactionSettingConfig } from 'uniswap/src/features/transactions/components/settings/types'
 import { filterSettingsByPlatform } from 'uniswap/src/features/transactions/components/settings/utils'
@@ -10,6 +10,8 @@ import { useTransactionModalContext } from 'uniswap/src/features/transactions/co
 import { SwapFormSettings } from 'uniswap/src/features/transactions/swap/components/SwapFormSettings/SwapFormSettings'
 import { Slippage } from 'uniswap/src/features/transactions/swap/components/SwapFormSettings/settingsConfigurations/slippage/Slippage/Slippage'
 import { TradeRoutingPreference } from 'uniswap/src/features/transactions/swap/components/SwapFormSettings/settingsConfigurations/TradeRoutingPreference/TradeRoutingPreference'
+import { TransactionSettingsButtonWithSlippage } from 'uniswap/src/features/transactions/components/settings/TransactionSettingsButtonWithSlippage'
+import { useSlippageSettings } from 'uniswap/src/features/transactions/components/settings/settingsConfigurations/slippage/useSlippageSettings'
 import { SwapFormCurrencyInputPanel } from 'uniswap/src/features/transactions/swap/form/SwapFormScreen/SwapFormCurrencyInputPanel'
 import { SwapFormCurrencyOutputPanel } from 'uniswap/src/features/transactions/swap/form/SwapFormScreen/SwapFormCurrencyOutputPanel'
 import { SwapFormDecimalPad } from 'uniswap/src/features/transactions/swap/form/SwapFormScreen/SwapFormDecimalPad/SwapFormDecimalPad'
@@ -64,11 +66,16 @@ export function SwapFormScreen({
   return (
     <TransactionModalInnerContainer fullscreen bottomSheetViewStyles={bottomSheetViewStyles}>
       {!isWebApp && <SwapFormHeader /> /* Interface renders its own header with multiple tabs */}
-      {!hideSettings && <SwapFormSettings settings={filteredSettings} isBridgeTrade={isBridgeTrade} />}
+      {/* Original Swap+Settings button moved to swapblock position below */}
+      {/* {!hideSettings && <SwapFormSettings settings={filteredSettings} isBridgeTrade={isBridgeTrade} />} */}
 
       {!hideContent && (
         <SwapFormScreenStoreContextProvider tokenColor={tokenColor}>
-          <SwapFormContent />
+          <SwapFormContent
+            hideSettings={hideSettings ?? false}
+            filteredSettings={filteredSettings}
+            isBridgeTrade={isBridgeTrade ?? false}
+          />
         </SwapFormScreenStoreContextProvider>
       )}
 
@@ -77,17 +84,38 @@ export function SwapFormScreen({
   )
 }
 
-function SwapFormContent(): JSX.Element {
+function SwapFormContent({
+  hideSettings,
+  filteredSettings,
+  isBridgeTrade,
+}: {
+  hideSettings: boolean
+  filteredSettings: TransactionSettingConfig[]
+  isBridgeTrade: boolean
+}): JSX.Element {
   const { trade, isCrossChain } = useSwapFormScreenStore((state) => ({
     trade: state.trade,
     isCrossChain: state.isCrossChain,
   }))
 
   const priceUXEnabled = usePriceUXEnabled()
+  const { autoSlippageTolerance } = useSlippageSettings()
 
   return (
     <Flex grow gap="$spacing8" justifyContent="space-between">
       <Flex gap="$spacing4" animation="quick" exitStyle={EXIT_STYLE} grow={isExtensionApp}>
+        
+        {/* Original Swap+Settings button moved here to occupy space within the border */}
+        {!hideSettings && (
+          <Flex row width="100%" height={50} justifyContent="space-between" alignItems="center" mb="$spacing2">
+            {/* Swap text */}
+            <Text variant="buttonLabel3" color="$neutral1" tag="h1">
+              Swap
+            </Text>
+            {/* Settings button */}
+            <SwapFormSettings settings={filteredSettings} isBridgeTrade={isBridgeTrade} position="static" adjustTopAlignment={false} adjustRightAlignment={false} />
+          </Flex>
+        )}
         <Flex gap="$spacing2">
           <SwapFormCurrencyInputPanel />
           <SwitchCurrenciesButton />

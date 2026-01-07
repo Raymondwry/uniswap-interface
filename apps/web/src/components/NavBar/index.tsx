@@ -29,6 +29,8 @@ const Nav = styled(TamaguiNav, {
   height: INTERFACE_NAV_HEIGHT,
   zIndex: zIndexes.sticky,
   justifyContent: 'center',
+  borderBottomWidth: 1,
+  borderColor: '#545C69',
 })
 const NavItems = css`
   gap: 12px;
@@ -43,6 +45,8 @@ const Left = deprecatedStyled(Row)`
   ${NavItems}
 `
 const Right = deprecatedStyled(Row)`
+  display: flex;
+  align-items: center;
   justify-content: flex-end;
   ${NavItems}
 `
@@ -67,13 +71,13 @@ export default function Navbar() {
           {areTabsVisible && <Tabs />}
         </Left>
 
-        {isSearchBarVisible && <SearchBar />}
+        {/* {isSearchBarVisible && <SearchBar />} */}
 
         <Right>
           <UniswapWrappedEntry />
-          {!isSearchBarVisible && <SearchBar />}
+          {/* {!isSearchBarVisible && <SearchBar />} */}
           {!isEmbeddedWalletEnabled && isLandingPage && !isSmallScreen && <NewUserCTAButton />}
-          {!isConnected && <PreferenceMenu />}
+          {/* {!isConnected && <PreferenceMenu />} */}
           {isTestnetModeEnabled && <TestnetModeTooltip />}
           {isEmbeddedWalletEnabled && !isConnected && <NewUserCTAButton />}
           <Web3Status />

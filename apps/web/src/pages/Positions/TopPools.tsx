@@ -44,7 +44,7 @@ export function TopPools({ chainId }: { chainId: UniverseChainId | null }) {
 
   return (
     <Flex gap={48}>
-      {displayBoostedPools && (
+      {/* {displayBoostedPools && (
         <Flex gap="$gap20">
           <TopPoolsSection
             title={t('pool.top.rewards')}
@@ -55,7 +55,7 @@ export function TopPools({ chainId }: { chainId: UniverseChainId | null }) {
             {t('explore.more.unichain')}
           </ExternalArrowLink>
         </Flex>
-      )}
+      )} */}
       {displayTopPools && (
         <Flex gap="$gap20">
           <TopPoolsSection title={t('pool.top.tvl')} pools={topPools} isLoading={exploreStatsLoading} />

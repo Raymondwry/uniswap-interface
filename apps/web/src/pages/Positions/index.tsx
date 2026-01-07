@@ -402,7 +402,7 @@ export default function Pool() {
         $lg={{ px: '$spacing20' }}
       >
         <Flex grow shrink gap="$spacing24" maxWidth={740} $xl={{ maxWidth: '100%' }}>
-          {isLPIncentivesEnabled && (
+          {/* {isLPIncentivesEnabled && (
             <LpIncentiveRewardsCard
               walletAddress={account.address}
               onCollectRewards={() => {
@@ -412,8 +412,8 @@ export default function Pool() {
               setTokenRewards={setTokenRewards}
               initialHasCollectedRewards={hasCollectedRewards}
             />
-          )}
-          <Flex row justifyContent="space-between" alignItems="center" mt={isLPIncentivesEnabled ? '$spacing28' : 0}>
+          )} */}
+          <Flex row justifyContent="space-between" alignItems="center" mt={0}>
             <PositionsHeader
               showFilters={account.isConnected}
               selectedChain={chainFilter}
@@ -469,7 +469,7 @@ export default function Pool() {
               ))}
             </Flex>
           )}
-          {!statusFilter.includes(PositionStatus.CLOSED) && !closedCTADismissed && account.address && (
+          {/* {!statusFilter.includes(PositionStatus.CLOSED) && !closedCTADismissed && account.address && (
             <Flex
               borderWidth="$spacing1"
               borderColor="$surface3"
@@ -493,7 +493,7 @@ export default function Pool() {
               </Flex>
               <CloseIconWithHover onClose={() => setClosedCTADismissed(true)} size="$icon.20" />
             </Flex>
-          )}
+          )} */}
           {isConnected && (
             <Flex row centered $sm={{ flexDirection: 'column', alignItems: 'flex-start' }} mb="$spacing24" gap="$gap4">
               <Text variant="body3" color="$neutral2">
@@ -509,7 +509,7 @@ export default function Pool() {
         </Flex>
         <Flex gap="$gap32">
           <TopPools chainId={chainFilter} />
-          {isConnected && (
+          {/* {isConnected && (
             <Flex gap="$gap20" mb="$spacing24">
               <Text variant="subheading1">{t('liquidity.learnMoreLabel')}</Text>
               <Flex gap="$gap12">
@@ -528,7 +528,7 @@ export default function Pool() {
                 {t('common.button.learn')}
               </ExternalArrowLink>
             </Flex>
-          )}
+          )} */}
         </Flex>
       </Flex>
       {isLPIncentivesEnabled && (

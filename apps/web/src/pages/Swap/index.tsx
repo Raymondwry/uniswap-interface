@@ -214,21 +214,21 @@ export function Swap({
   )
 }
 
-const SWAP_TABS = [SwapTab.Swap, SwapTab.Limit, SwapTab.Buy, SwapTab.Sell]
+const SWAP_TABS: SwapTab[] = [] // SwapTab.Swap, SwapTab.Limit, SwapTab.Buy, SwapTab.Sell
 
 const TAB_TYPE_TO_LABEL = {
-  [SwapTab.Swap]: (t: AppTFunction) => t('swap.form.header'),
-  [SwapTab.Limit]: (t: AppTFunction) => t('swap.limit'),
+  // [SwapTab.Swap]: (t: AppTFunction) => t('swap.form.header'),
+  // [SwapTab.Limit]: (t: AppTFunction) => t('swap.limit'),
   [SwapTab.Send]: (t: AppTFunction) => t('send.title'),
-  [SwapTab.Buy]: (t: AppTFunction) => t('common.buy.label'),
-  [SwapTab.Sell]: (t: AppTFunction) => t('common.sell.label'),
+  // [SwapTab.Buy]: (t: AppTFunction) => t('common.buy.label'),
+  // [SwapTab.Sell]: (t: AppTFunction) => t('common.sell.label'),
 }
 
 const PATHNAME_TO_TAB: { [key: string]: SwapTab } = {
   '/swap': SwapTab.Swap,
-  '/limit': SwapTab.Limit,
-  '/buy': SwapTab.Buy,
-  '/sell': SwapTab.Sell,
+  // '/limit': SwapTab.Limit,
+  // '/buy': SwapTab.Buy,
+  // '/sell': SwapTab.Sell,
 }
 
 function UniversalSwapFlow({
@@ -260,16 +260,16 @@ function UniversalSwapFlow({
   const { t } = useTranslation()
   const swapHandlers = useSwapHandlers()
 
-  const LimitFormWrapper = useDeferredComponent(() =>
-    import('pages/Swap/Limit/LimitForm').then((module) => ({
-      default: module.LimitFormWrapper,
-    })),
-  )
-  const BuyForm = useDeferredComponent(() =>
-    import('pages/Swap/Buy/BuyForm').then((module) => ({
-      default: module.BuyForm,
-    })),
-  )
+  // const LimitFormWrapper = useDeferredComponent(() =>
+  //   import('pages/Swap/Limit/LimitForm').then((module) => ({
+  //     default: module.LimitFormWrapper,
+  //   })),
+  // )
+  // const BuyForm = useDeferredComponent(() =>
+  //   import('pages/Swap/Buy/BuyForm').then((module) => ({
+  //     default: module.BuyForm,
+  //   })),
+  // )
 
   const { openModal: openSendFormModal } = useModalState(ModalName.Send)
 
@@ -302,9 +302,9 @@ function UniversalSwapFlow({
   const isFiatOffRampEnabled = useFeatureFlag(FeatureFlags.FiatOffRamp)
   const SWAP_TAB_OPTIONS: readonly SegmentedControlOption<SwapTab>[] = useMemo(() => {
     return SWAP_TABS.filter((tab) => {
-      if (tab === SwapTab.Sell && !isFiatOffRampEnabled) {
-        return false
-      }
+      // if (tab === SwapTab.Sell && !isFiatOffRampEnabled) {
+      //   return false
+      // }
 
       return true
     }).map((tab) => ({
@@ -316,7 +316,7 @@ function UniversalSwapFlow({
           color={currentTab === tab ? '$neutral1' : '$neutral2'}
           tag="h1"
         >
-          {TAB_TYPE_TO_LABEL[tab](t)}
+          {tab in TAB_TYPE_TO_LABEL ? TAB_TYPE_TO_LABEL[tab as keyof typeof TAB_TYPE_TO_LABEL](t) : tab}
         </Text>
       ),
     }))
@@ -332,14 +332,25 @@ function UniversalSwapFlow({
     <Flex>
       {!hideHeader && (
         <Flex row gap="$spacing16">
-          <SegmentedControl
-            outlined={false}
-            size="large"
-            options={SWAP_TAB_OPTIONS}
-            selectedOption={currentTab}
-            onSelectOption={onTabClick}
-            gap={isMobileWeb ? '$spacing8' : undefined}
-          />
+          {SWAP_TAB_OPTIONS.length >= 2 ? (
+            <SegmentedControl
+              outlined={false}
+              size="large"
+              options={SWAP_TAB_OPTIONS}
+              selectedOption={currentTab}
+              onSelectOption={onTabClick}
+              gap={isMobileWeb ? '$spacing8' : undefined}
+            />
+          ) : (
+            // <Text
+            //   variant="buttonLabel3"
+            //   color="$neutral1"
+            //   tag="h1"
+            // >
+            //   {TAB_TYPE_TO_LABEL[SwapTab.Swap](t)}
+            // </Text>
+            null
+          )}
         </Flex>
       )}
       {currentTab === SwapTab.Swap && (
@@ -361,21 +372,21 @@ function UniversalSwapFlow({
           <SwapBottomCard />
         </Flex>
       )}
-      {currentTab === SwapTab.Limit && LimitFormWrapper && <LimitFormWrapper onCurrencyChange={onCurrencyChange} />}
-      {currentTab === SwapTab.Buy && BuyForm && (
+      {/* {currentTab === SwapTab.Limit && LimitFormWrapper && <LimitFormWrapper onCurrencyChange={onCurrencyChange} />} */}
+      {/* {currentTab === SwapTab.Buy && BuyForm && (
         <BuyForm
           rampDirection={RampDirection.ONRAMP}
           disabled={disableTokenInputs}
           initialCurrency={tdpCurrency ?? prefilledState?.output}
         />
-      )}
-      {currentTab === SwapTab.Sell && BuyForm && (
+      )} */}
+      {/* {currentTab === SwapTab.Sell && BuyForm && (
         <BuyForm
           rampDirection={RampDirection.OFFRAMP}
           disabled={disableTokenInputs}
           initialCurrency={tdpCurrency ?? prefilledState?.output}
         />
-      )}
+      )} */}
     </Flex>
   )
 }
