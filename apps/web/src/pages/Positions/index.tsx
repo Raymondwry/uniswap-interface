@@ -5,7 +5,7 @@ import PROVIDE_LIQUIDITY from 'assets/images/provideLiquidity.png'
 import tokenLogo from 'assets/images/token-logo.png'
 import V4_HOOK from 'assets/images/v4Hooks.png'
 import { ExpandoRow } from 'components/AccountDrawer/MiniPortfolio/ExpandoRow'
-import { useAccountDrawer } from 'components/AccountDrawer/MiniPortfolio/hooks'
+import { useAppKit } from 'components/Web3Provider/reownConfig'
 import { MenuStateVariant, useSetMenu } from 'components/AccountDrawer/menuState'
 import { ExternalArrowLink } from 'components/Liquidity/ExternalArrowLink'
 import { LiquidityPositionCard, LiquidityPositionCardLoader } from 'components/Liquidity/LiquidityPositionCard'
@@ -50,7 +50,7 @@ const PAGE_SIZE = 25
 
 function DisconnectedWalletView() {
   const { t } = useTranslation()
-  const accountDrawer = useAccountDrawer()
+  const { open } = useAppKit()
   const setMenu = useSetMenu()
   const connectedWithoutEVM = useIsMissingPlatformWallet(Platform.EVM)
 
@@ -58,7 +58,7 @@ function DisconnectedWalletView() {
     if (connectedWithoutEVM) {
       setMenu({ variant: MenuStateVariant.CONNECT_PLATFORM, platform: Platform.EVM })
     }
-    accountDrawer.open()
+    open({ view: 'Connect' })
   }
 
   return (

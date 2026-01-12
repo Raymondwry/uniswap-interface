@@ -47,26 +47,30 @@ function useApplicablePendingWallet() {
 /**
  * Tracks which wallet needs the Solana prompt. Persists after EVM completes to keep modal open.
  * Different from useApplicablePendingWallet which becomes undefined once connection starts.
+ * 
+ * DISABLED: Solana prompt is disabled for HSKSwap.
  */
 function useSolanaWalletToPrompt(applicablePendingWallet: ExternalWallet | undefined) {
-  const hasAcceptedSolanaConnectionPrompt = useHasAcceptedSolanaConnectionPromptWithBuffer()
-
-  const [solanaWalletToPrompt, setSolanaWalletToPrompt] = useState<ExternalWallet>()
-
-  const isMultiPlatformConnection = !useConnectWallet().variables?.individualPlatform
-
-  // Set a flag to keep the modal open if the solana prompt should be shown
-  useEffect(() => {
-    if (applicablePendingWallet && !hasAcceptedSolanaConnectionPrompt && isMultiPlatformConnection) {
-      setSolanaWalletToPrompt(applicablePendingWallet)
-    }
-  }, [hasAcceptedSolanaConnectionPrompt, applicablePendingWallet, isMultiPlatformConnection])
-
+  // Always return undefined to disable Solana prompt
   const resetSolanaWalletToPrompt = useEvent(() => {
-    setSolanaWalletToPrompt(undefined)
+    // No-op
   })
 
-  return { solanaWalletToPrompt, resetSolanaWalletToPrompt }
+  return { solanaWalletToPrompt: undefined, resetSolanaWalletToPrompt }
+
+  // Original implementation (disabled):
+  // const hasAcceptedSolanaConnectionPrompt = useHasAcceptedSolanaConnectionPromptWithBuffer()
+  // const [solanaWalletToPrompt, setSolanaWalletToPrompt] = useState<ExternalWallet>()
+  // const isMultiPlatformConnection = !useConnectWallet().variables?.individualPlatform
+  // useEffect(() => {
+  //   if (applicablePendingWallet && !hasAcceptedSolanaConnectionPrompt && isMultiPlatformConnection) {
+  //     setSolanaWalletToPrompt(applicablePendingWallet)
+  //   }
+  // }, [hasAcceptedSolanaConnectionPrompt, applicablePendingWallet, isMultiPlatformConnection])
+  // const resetSolanaWalletToPrompt = useEvent(() => {
+  //   setSolanaWalletToPrompt(undefined)
+  // })
+  // return { solanaWalletToPrompt, resetSolanaWalletToPrompt }
 }
 
 /** Modal for dual-VM wallets (MetaMask) that shows connection status and prompts for Solana opt-in. */

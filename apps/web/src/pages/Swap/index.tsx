@@ -1,7 +1,7 @@
 import { PrefetchBalancesWrapper } from 'appGraphql/data/apollo/AdaptiveTokenBalancesProvider'
 import type { Currency } from '@uniswap/sdk-core'
 import { FeatureFlags, useFeatureFlag } from '@universe/gating'
-import { useAccountDrawer } from 'components/AccountDrawer/MiniPortfolio/hooks'
+import { useAppKit } from 'components/Web3Provider/reownConfig'
 import { SwapBottomCard } from 'components/SwapBottomCard'
 import { SwitchLocaleLink } from 'components/SwitchLocaleLink'
 import { PageWrapper } from 'components/swap/styled'
@@ -60,7 +60,7 @@ export default function SwapPage() {
   // (WEB-4737): Remove this line after completing A/A Test on Web
   useFeatureFlag(FeatureFlags.AATestWeb)
 
-  const accountDrawer = useAccountDrawer()
+  const { open } = useAppKit()
 
   const {
     initialInputCurrency,
@@ -74,10 +74,10 @@ export default function SwapPage() {
 
   useEffect(() => {
     if (triggerConnect) {
-      accountDrawer.open()
+      open({ view: 'Connect' })
       navigate(location.pathname, { replace: true })
     }
-  }, [accountDrawer, triggerConnect, navigate, location.pathname])
+  }, [open, triggerConnect, navigate, location.pathname])
 
   return (
     <Trace logImpression page={InterfacePageName.SwapPage}>
