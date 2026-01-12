@@ -717,7 +717,7 @@
   "downloadApp.modal.getStarted.title": "Simulang mag-swap sa loob lang ng ilang segundo",
   "downloadApp.modal.getTheApp.title": "Magsimula sa Uniswap",
   "downloadApp.modal.uniswapProducts.subtitle": "Maayos na gumagana nang magkakasama ang mga produkto ng Uniswap para magawa ang pinakamagandang onchain na experience.",
-  "empty.swap.button.text": "Magdagdag ng mga pondo para mag-swap",
+  "empty.swap.button.text": "Mag-swap ng Tokens",
   "error.dataUnavailable": "Hindi available ang data sa ngayon; inaayos na namin ito",
   "error.id": "Error ID: {{eventId}}",
   "error.jupiterApi.execute.default.title": "Nagkaproblema sa Jupiter API. Pakisubukan ulit.",

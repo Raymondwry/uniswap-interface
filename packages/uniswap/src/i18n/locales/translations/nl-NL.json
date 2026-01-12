@@ -717,7 +717,7 @@
   "downloadApp.modal.getStarted.title": "Begin in een paar seconden met swappen",
   "downloadApp.modal.getTheApp.title": "Aan de slag met Uniswap",
   "downloadApp.modal.uniswapProducts.subtitle": "Uniswap-producten werken naadloos samen om de beste onchain-ervaring te creëren.",
-  "empty.swap.button.text": "Geld toevoegen aan swap",
+  "empty.swap.button.text": "Tokens Wisselen",
   "error.dataUnavailable": "Gegevens zijn momenteel niet beschikbaar; we werken aan een oplossing",
   "error.id": "Fout-ID: {{eventId}}",
   "error.jupiterApi.execute.default.title": "Er is iets misgegaan met de Jupiter-API. Probeer het opnieuw.",

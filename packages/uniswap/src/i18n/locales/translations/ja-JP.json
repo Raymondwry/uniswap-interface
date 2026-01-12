@@ -717,7 +717,7 @@
   "downloadApp.modal.getStarted.title": "すぐにスワップを始められます",
   "downloadApp.modal.getTheApp.title": "Uniswap を始めましょう",
   "downloadApp.modal.uniswapProducts.subtitle": "Uniswap 製品はシームレスに連携して、最高のオンチェーンエクスペリエンスを実現します。",
-  "empty.swap.button.text": "資金を追加してスワップする",
+  "empty.swap.button.text": "トークンをスワップ",
   "error.dataUnavailable": "現在、データをご利用いただけません。問題を解決中です",
   "error.id": "エラーID：{{eventId}}",
   "error.jupiterApi.execute.default.title": "Jupiter API でエラーが発生しました。もう一度お試しください。",

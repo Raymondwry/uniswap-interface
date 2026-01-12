@@ -37,7 +37,7 @@ export const WC_PARAMS = {
     name: 'Uniswap',
     description: 'Uniswap Interface',
     url: 'https://app.uniswap.org',
-    icons: ['https://app.uniswap.org/favicon.png'],
+    icons: ['https://app.uniswap.org/icons/hskswap-icon.svg'],
   },
   qrModalOptions: {
     themeVariables: {
@@ -76,7 +76,7 @@ export function uniswapWalletConnect() {
       id: 'uniswapWalletConnect',
       type: 'uniswapWalletConnect',
       name: 'Uniswap Wallet',
-      icon: 'https://app.uniswap.org/favicon.png',
+      icon: 'https://app.uniswap.org/icons/hskswap-icon.svg',
     }
   })
 }

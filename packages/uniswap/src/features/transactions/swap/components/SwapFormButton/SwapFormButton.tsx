@@ -1,10 +1,6 @@
+import { useState } from 'react'
 import { Button, Flex, styled, useIsShortMobileDevice } from 'ui/src'
-import { useCexTransferProviders } from 'uniswap/src/features/fiatOnRamp/useCexTransferProviders'
-import {
-  useIsShowingWebFORNudge,
-  useIsWebFORNudgeEnabled,
-  useSetIsShowingWebFORNudge,
-} from 'uniswap/src/features/providers/webForNudgeProvider'
+import { useTranslation } from 'react-i18next'
 import { useTransactionModalContext } from 'uniswap/src/features/transactions/components/TransactionModal/TransactionModalContext'
 import { useIsSwapButtonDisabled } from 'uniswap/src/features/transactions/swap/components/SwapFormButton/hooks/useIsSwapButtonDisabled'
 import { useIsTradeIndicative } from 'uniswap/src/features/transactions/swap/components/SwapFormButton/hooks/useIsTradeIndicative'
@@ -12,6 +8,9 @@ import { useOnReviewPress } from 'uniswap/src/features/transactions/swap/compone
 import { useSwapFormButtonColors } from 'uniswap/src/features/transactions/swap/components/SwapFormButton/hooks/useSwapFormButtonColors'
 import { useSwapFormButtonText } from 'uniswap/src/features/transactions/swap/components/SwapFormButton/hooks/useSwapFormButtonText'
 import { SwapFormButtonTrace } from 'uniswap/src/features/transactions/swap/components/SwapFormButton/SwapFormButtonTrace'
+import { SwapConfirmationModal } from 'uniswap/src/features/transactions/swap/components/SwapConfirmationModal/SwapConfirmationModal'
+import { useSwapFormStoreDerivedSwapInfo } from 'uniswap/src/features/transactions/swap/stores/swapFormStore/useSwapFormStore'
+import { useIsWebFORNudgeEnabled } from 'uniswap/src/features/providers/webForNudgeProvider'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
 import { useEvent } from 'utilities/src/react/hooks'
 
@@ -58,51 +57,87 @@ export function SwapFormButton({ tokenColor }: { tokenColor?: string }): JSX.Ele
     emphasis: buttonEmphasis,
     buttonTextColor,
   } = useSwapFormButtonColors(tokenColor)
-  const isShowingWebFORNudge = useIsShowingWebFORNudge()
-  const setIsShowingWebFORNudge = useSetIsShowingWebFORNudge()
-  const promptWebFORNudge = useIsWebFORNudgeEnabled() && !swapRedirectCallback && !isShowingWebFORNudge
   // Only show loading state if the trade is `indicative` and we're not on the landing page.
   // This is so that the `Get Started` button is always enabled/clickable.
   const shouldShowLoading = !!indicative && !swapRedirectCallback
 
-  // preload cex transfer providers to avoid flickering when showing web for nudge
-  useCexTransferProviders({ isDisabled: !promptWebFORNudge })
+  const [isSwapConfirmationModalOpen, setIsSwapConfirmationModalOpen] = useState(false)
+  const derivedSwapInfo = useSwapFormStoreDerivedSwapInfo((s) => s)
+  const isWebFORNudgeEnabled = useIsWebFORNudgeEnabled()
+  const { t } = useTranslation()
+  const swapTokensText = t('empty.swap.button.text')
 
-  const setIsShowingWebFORNudgeHandler: () => void = useEvent(() => {
-    setIsShowingWebFORNudge(true)
+  const handleButtonPress = useEvent(() => {
+    // Show confirmation modal when button text is "Swap Tokens" (either from WebFORNudge or other conditions)
+    // Check both the flag and the actual button text to be safe
+    const shouldShowModal = (isWebFORNudgeEnabled || buttonText === swapTokensText) && !swapRedirectCallback
+    
+    // Debug: log the values to help troubleshoot
+    if (process.env.NODE_ENV === 'development') {
+      console.log('SwapFormButton press:', {
+        isWebFORNudgeEnabled,
+        buttonText,
+        swapTokensText,
+        shouldShowModal,
+        swapRedirectCallback,
+      })
+    }
+    
+    if (shouldShowModal) {
+      setIsSwapConfirmationModalOpen(true)
+    } else {
+      handleOnReviewPress()
+    }
+  })
+
+  const handleConfirmSwap = useEvent(() => {
+    setIsSwapConfirmationModalOpen(false)
+    handleOnReviewPress()
+  })
+
+  const handleCloseModal = useEvent(() => {
+    setIsSwapConfirmationModalOpen(false)
   })
 
   return (
-    <Flex alignItems="center" gap={isShortMobileDevice ? '$spacing8' : '$spacing16'}>
-      <SwapFormButtonTrace>
-        <Flex row alignSelf="stretch">
-          <GradientWrapper width="100%">
-            <Button
-              variant={buttonVariant}
-              emphasis={buttonEmphasis}
-              // TODO(WALL-7186): make loading state more representative of the trade state
-              loading={shouldShowLoading}
-              isDisabled={disabled}
-              backgroundColor="transparent"
-              size={isShortMobileDevice ? 'small' : 'large'}
-              testID={TestID.ReviewSwap}
-              onPress={promptWebFORNudge ? setIsShowingWebFORNudgeHandler : handleOnReviewPress}
-              width="100%"
-              borderRadius={12}
-              hoverStyle={{
-                backgroundColor: 'transparent',
-                borderColor: 'transparent',
-              }}
-              pressStyle={{
-                backgroundColor: 'transparent',
-                borderColor: 'transparent',
-              }}
-            >
-              <WhiteButtonText>{buttonText}</WhiteButtonText>
-            </Button>
-          </GradientWrapper>
-        </Flex>
-      </SwapFormButtonTrace>
-    </Flex>
+    <>
+      <Flex alignItems="center" gap={isShortMobileDevice ? '$spacing8' : '$spacing16'}>
+        <SwapFormButtonTrace>
+          <Flex row alignSelf="stretch">
+            <GradientWrapper width="100%">
+              <Button
+                variant={buttonVariant}
+                emphasis={buttonEmphasis}
+                // TODO(WALL-7186): make loading state more representative of the trade state
+                loading={shouldShowLoading}
+                isDisabled={disabled}
+                backgroundColor="transparent"
+                size={isShortMobileDevice ? 'small' : 'large'}
+                testID={TestID.ReviewSwap}
+                onPress={handleButtonPress}
+                width="100%"
+                borderRadius={12}
+                hoverStyle={{
+                  backgroundColor: 'transparent',
+                  borderColor: 'transparent',
+                }}
+                pressStyle={{
+                  backgroundColor: 'transparent',
+                  borderColor: 'transparent',
+                }}
+              >
+                <WhiteButtonText>{buttonText}</WhiteButtonText>
+              </Button>
+            </GradientWrapper>
+          </Flex>
+        </SwapFormButtonTrace>
+      </Flex>
+      <SwapConfirmationModal
+        isOpen={isSwapConfirmationModalOpen}
+        onClose={handleCloseModal}
+        onConfirm={handleConfirmSwap}
+        derivedSwapInfo={derivedSwapInfo}
+      />
+    </>
   )
 }

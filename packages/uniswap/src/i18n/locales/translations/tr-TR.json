@@ -717,7 +717,7 @@
   "downloadApp.modal.getStarted.title": "Saniyeler içinde swap işlemlerine başla",
   "downloadApp.modal.getTheApp.title": "Uniswap'ı kullanmaya başla",
   "downloadApp.modal.uniswapProducts.subtitle": "Uniswap ürünleri, en iyi zincir içi deneyimi sunmak için kusursuz bir şekilde birlikte çalışır.",
-  "empty.swap.button.text": "Swap'a fon ekle",
+  "empty.swap.button.text": "Token Takasla",
   "error.dataUnavailable": "Veriler şu anda kullanılamıyor; bir düzeltme üzerinde çalışıyoruz",
   "error.id": "Hata Kimliği: {{eventId}}",
   "error.jupiterApi.execute.default.title": "Jupiter API ile ilgili bir sorun oluştu. Lütfen tekrar dene.",

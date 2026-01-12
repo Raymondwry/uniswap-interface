@@ -250,6 +250,7 @@ export const routes: RouteDefinition[] = [
     path: '/swap',
     getElement: () => <Swap />,
     getTitle: () => StaticTitlesAndDescriptions.SwapTitle,
+    getDescription: () => StaticTitlesAndDescriptions.SwapDescription,
   }),
   // Refreshed pool routes
   createRouteDefinition({
