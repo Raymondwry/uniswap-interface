@@ -7,12 +7,41 @@ import { createUniswapFetchClient } from 'uniswap/src/data/apiClients/createUnis
 import { filterChainIdsByPlatform } from 'uniswap/src/features/chains/utils'
 import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 
+// Use UNISWAP_GATEWAY_DNS for quote API only, keep other endpoints using default Trading API
+const quoteApiBaseUrl = process.env.REACT_APP_UNISWAP_GATEWAY_DNS || uniswapUrls.tradingApiUrl
+
 const TradingFetchClient = createUniswapFetchClient({
   baseUrl: uniswapUrls.tradingApiUrl,
   additionalHeaders: {
     'x-api-key': config.tradingApiKey,
   },
 })
+
+// Separate fetch client for quote API only
+// Only add x-api-key header if tradingApiKey is provided (for local services, this may be empty)
+const quoteApiHeaders: Record<string, string> = {}
+if (config.tradingApiKey) {
+  quoteApiHeaders['x-api-key'] = config.tradingApiKey
+}
+
+const QuoteFetchClient = createUniswapFetchClient({
+  baseUrl: quoteApiBaseUrl,
+  additionalHeaders: quoteApiHeaders,
+})
+
+// Debug: Log Trading API configuration (quoteUrlPath will be defined later)
+if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+  const debugQuoteUrlPath = tradingApiVersionPrefix
+    ? `${tradingApiVersionPrefix}/${TRADING_API_PATHS.quote}`
+    : `/${TRADING_API_PATHS.quote}`
+  console.log('[TradingApiClient] Base URL:', uniswapUrls.tradingApiUrl)
+  console.log('[TradingApiClient] Quote API Base URL:', quoteApiBaseUrl)
+  console.log('[TradingApiClient] API Path Prefix:', tradingApiVersionPrefix)
+  console.log('[TradingApiClient] Quote URL Path:', debugQuoteUrlPath)
+  console.log('[TradingApiClient] Full Quote URL:', `${quoteApiBaseUrl}${debugQuoteUrlPath}`)
+  console.log('[TradingApiClient] Trading API Key:', config.tradingApiKey ? '***' : '(empty - no API key header will be sent)')
+  console.log('[TradingApiClient] Quote API Headers:', quoteApiHeaders)
+}
 
 /**
  * Helper to add a header only if enabled.
@@ -90,11 +119,157 @@ export const getQuoteHeaders = (): Record<string, string> => {
   return headers
 }
 
-export const TradingApiClient = createTradingApiClient({
+// Create default TradingApiClient with standard Trading API URL
+const DefaultTradingApiClient = createTradingApiClient({
   fetchClient: TradingFetchClient,
   getFeatureFlagHeaders: getFeatureFlaggedHeaders,
   getApiPathPrefix: () => tradingApiVersionPrefix,
 })
+
+// Create a custom fetchQuote that uses the quote-specific base URL
+import { createFetcher } from '@universe/api/src/clients/base/utils'
+import type { QuoteRequest } from '@universe/api/src/clients/trading/__generated__'
+import { RoutingPreference } from '@universe/api/src/clients/trading/__generated__'
+import type { DiscriminatedQuoteResponse } from '@universe/api/src/clients/trading/tradeTypes'
+
+// IndicativeQuoteRequest is a subset of QuoteRequest
+type IndicativeQuoteRequest = Pick<
+  QuoteRequest,
+  'type' | 'amount' | 'tokenInChainId' | 'tokenOutChainId' | 'tokenIn' | 'tokenOut' | 'swapper'
+>
+
+// Build the quote URL path - ensure it starts with / if prefix is empty
+const quoteUrlPath = tradingApiVersionPrefix
+  ? `${tradingApiVersionPrefix}/${TRADING_API_PATHS.quote}`
+  : `/${TRADING_API_PATHS.quote}`
+
+// Map chain IDs to internal service format
+// Internal service expects "hsk" or "hsktest" instead of numeric chain IDs
+const mapChainIdToInternalFormat = (chainId: number): string | null => {
+  // HashKey Chain Mainnet: 177 -> "hsk"
+  if (chainId === 177) {
+    return 'hsk'
+  }
+  // HashKey Chain Testnet: 133 -> "hsktest"
+  if (chainId === 133) {
+    return 'hsktest'
+  }
+  // Other chain IDs are not supported by internal service
+  return null
+}
+
+// Transform request for internal quote API
+// Only converts chain IDs to internal service format, keeps all other fields unchanged
+const transformQuoteRequest = async (request: {
+  url: string
+  headers?: HeadersInit
+  params: QuoteRequest & { isUSDQuote?: boolean }
+}) => {
+  const { params } = request
+  
+  // Convert chain IDs to internal service format
+  const tokenInChainIdInternal = mapChainIdToInternalFormat(params.tokenInChainId)
+  const tokenOutChainIdInternal = mapChainIdToInternalFormat(params.tokenOutChainId)
+  
+  // If chain IDs are not supported, log warning and use original values
+  // (This will likely result in 400 error, but allows debugging)
+  if (!tokenInChainIdInternal || !tokenOutChainIdInternal) {
+    if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+      console.warn('[TradingApiClient] Unsupported chain IDs:', {
+        tokenInChainId: params.tokenInChainId,
+        tokenOutChainId: params.tokenOutChainId,
+        message: 'Internal service only supports HashKey Chain (177) and HashKey Testnet (133)',
+      })
+    }
+  }
+  
+  // Keep all original fields unchanged, only update chain IDs
+  const transformedParams = {
+    ...params,
+    // Override chain IDs with internal format if available, otherwise keep original
+    tokenInChainId: tokenInChainIdInternal ?? params.tokenInChainId,
+    tokenOutChainId: tokenOutChainIdInternal ?? params.tokenOutChainId,
+  }
+
+  if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+    console.log('[TradingApiClient] Transformed request:', {
+      original: {
+        tokenInChainId: params.tokenInChainId,
+        tokenOutChainId: params.tokenOutChainId,
+      },
+      transformed: {
+        tokenInChainId: transformedParams.tokenInChainId,
+        tokenOutChainId: transformedParams.tokenOutChainId,
+        hasGasStrategies: !!transformedParams.gasStrategies,
+      },
+    })
+  }
+
+  return {
+    headers: getFeatureFlaggedHeaders(TRADING_API_PATHS.quote),
+    params: transformedParams,
+  }
+}
+
+const customFetchQuote = createFetcher<QuoteRequest & { isUSDQuote?: boolean }, DiscriminatedQuoteResponse>({
+  client: QuoteFetchClient,
+  url: quoteUrlPath,
+  method: 'post',
+  transformRequest: transformQuoteRequest,
+  on404: (params: QuoteRequest & { isUSDQuote?: boolean }) => {
+    // Use the logger from the default client if available
+    if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+      console.warn('[TradingApiClient] Quote 404', {
+        chainIdIn: params.tokenInChainId,
+        chainIdOut: params.tokenOutChainId,
+        tradeType: params.type,
+        isBridging: params.tokenInChainId !== params.tokenOutChainId,
+        url: `${quoteApiBaseUrl}${quoteUrlPath}`,
+      })
+    }
+  },
+})
+
+// Add error handling wrapper to log errors
+const customFetchQuoteWithErrorHandling = async (
+  params: QuoteRequest & { isUSDQuote?: boolean },
+): Promise<DiscriminatedQuoteResponse> => {
+  try {
+    if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+      console.log('[TradingApiClient] Fetching quote (original request):', {
+        url: `${quoteApiBaseUrl}${quoteUrlPath}`,
+        chainIdIn: params.tokenInChainId,
+        chainIdOut: params.tokenOutChainId,
+        requestBody: JSON.stringify(params, null, 2),
+      })
+      console.log('[TradingApiClient] Note: Request will be transformed by transformQuoteRequest before sending')
+    }
+    return await customFetchQuote(params)
+  } catch (error) {
+    if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+      console.error('[TradingApiClient] Quote fetch error:', error, {
+        url: `${quoteApiBaseUrl}${quoteUrlPath}`,
+        chainIdIn: params.tokenInChainId,
+        chainIdOut: params.tokenOutChainId,
+        originalRequestBody: JSON.stringify(params, null, 2),
+      })
+    }
+    throw error
+  }
+}
+
+// Override fetchQuote to use the custom quote client
+export const TradingApiClient = {
+  ...DefaultTradingApiClient,
+  fetchQuote: customFetchQuoteWithErrorHandling,
+  // fetchIndicativeQuote also uses fetchQuote, so it will automatically use the custom one
+  fetchIndicativeQuote: (params: IndicativeQuoteRequest): Promise<DiscriminatedQuoteResponse> => {
+    return customFetchQuoteWithErrorHandling({
+      ...params,
+      routingPreference: RoutingPreference.FASTEST,
+    })
+  },
+}
 
 // Default maximum amount of combinations wallet<>chainId per check delegation request
 const DEFAULT_CHECK_VALIDATIONS_BATCH_THRESHOLD = 140

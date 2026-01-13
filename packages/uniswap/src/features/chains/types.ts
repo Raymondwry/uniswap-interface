@@ -28,8 +28,8 @@ export enum UniverseChainId {
   WorldChain = UniswapSDKChainId.WORLDCHAIN,
   Zksync = UniswapSDKChainId.ZKSYNC,
   Zora = UniswapSDKChainId.ZORA,
-  HashKey = 530, // HashKey Chain Mainnet
-  HashKeyTestnet = 53000, // HashKey Chain Testnet
+  HashKey = 177, // HashKey Chain Mainnet
+  HashKeyTestnet = 133, // HashKey Chain Testnet
   Solana = 501000101,
 }
 
