@@ -301,6 +301,7 @@
   "common.connectAWallet.button.switch": "Ganti dompet",
   "common.connectTo": "Hubungkan ke {{platform}}",
   "common.connectWallet.button": "Hubungkan dompet",
+  "common.connecting": "Menghubungkan",
   "common.contactUs.button": "Hubungi kami",
   "common.copied": "Disalin",
   "common.copy.address": "Salin alamat",

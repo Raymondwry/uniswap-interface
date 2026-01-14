@@ -127,7 +127,8 @@ function Updaters() {
 }
 
 // Production Web3Provider – always reconnects on mount and runs capability effects.
-const Web3Provider = createWeb3Provider({ wagmiConfig })
+// Use wagmiAdapter.wagmiConfig from reownConfig (matching hsk-staking-launchpad-main)
+const Web3Provider = createWeb3Provider({})
 
 function GraphqlProviders({ children }: { children: React.ReactNode }) {
   return (

@@ -301,6 +301,7 @@
   "common.connectAWallet.button.switch": "Switch wallet",
   "common.connectTo": "Connect to {{platform}}",
   "common.connectWallet.button": "Connect wallet",
+  "common.connecting": "Connecting",
   "common.contactUs.button": "Contact us",
   "common.copied": "Copied",
   "common.copy.address": "Copy address",

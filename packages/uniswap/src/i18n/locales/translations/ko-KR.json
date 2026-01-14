@@ -301,6 +301,7 @@
   "common.connectAWallet.button.switch": "지갑 전환",
   "common.connectTo": "{{platform}}에 연결",
   "common.connectWallet.button": "지갑 연결",
+  "common.connecting": "연결 중",
   "common.contactUs.button": "문의하기",
   "common.copied": "복사됨",
   "common.copy.address": "주소 복사",

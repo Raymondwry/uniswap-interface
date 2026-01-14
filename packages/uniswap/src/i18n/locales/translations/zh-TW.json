@@ -301,6 +301,7 @@
   "common.connectAWallet.button.switch": "切換錢包",
   "common.connectTo": "連接至 {{platform}}",
   "common.connectWallet.button": "連線錢包",
+  "common.connecting": "連線中",
   "common.contactUs.button": "聯絡我們",
   "common.copied": "已複製",
   "common.copy.address": "複製地址",

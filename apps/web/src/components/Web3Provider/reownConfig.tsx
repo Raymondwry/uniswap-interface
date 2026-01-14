@@ -32,10 +32,10 @@ const networks = [
     ...hashkey,
     rpcUrls: {
       default: {
-        http: ['https://mainnet.hashkeychain.io'],
+        http: ['https://mainnet.hsk.xyz'],
       },
       public: {
-        http: ['https://mainnet.hashkeychain.io'],
+        http: ['https://mainnet.hsk.xyz'],
       },
     },
     blockExplorers: {
@@ -49,10 +49,10 @@ const networks = [
     ...hashkeyTestnet,
     rpcUrls: {
       default: {
-        http: ['https://testnet.hashkeychain.io'],
+        http: ['https://testnet.hsk.xyz'],
       },
       public: {
-        http: ['https://testnet.hashkeychain.io'],
+        http: ['https://testnet.hsk.xyz'],
       },
     },
     blockExplorers: {
@@ -82,12 +82,18 @@ const modal = createAppKit({
   enableAuthLogger: false,
   enableReconnect: false,
   enableCoinbase: false,
-  metadata: {
-    name: 'HSKSwap',
-    description: 'HSKSwap Interface',
-    url: UNISWAP_WEB_URL,
-    icons: [`${UNISWAP_WEB_URL}icons/hskswap-icon.svg`],
-  },
+  // metadata: Reown AppKit will automatically use window.location for metadata
+  // If needed, uncomment and customize:
+  // metadata: {
+  //   name: 'HSKSwap',
+  //   description: 'HSKSwap Interface',
+  //   url: typeof window !== 'undefined' ? window.location.origin : UNISWAP_WEB_URL,
+  //   icons: [
+  //     typeof window !== 'undefined' 
+  //       ? `${window.location.origin}/icons/hskswap-icon.svg`
+  //       : `${UNISWAP_WEB_URL}icons/hskswap-icon.svg`
+  //   ],
+  // },
   features: {
     analytics: false,
     email: false,

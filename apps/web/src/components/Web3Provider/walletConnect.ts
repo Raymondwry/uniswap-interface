@@ -34,10 +34,10 @@ export function walletTypeToAmplitudeWalletType(connectionType?: string): string
 export const WC_PARAMS = {
   projectId: WALLET_CONNECT_PROJECT_ID,
   metadata: {
-    name: 'Uniswap',
-    description: 'Uniswap Interface',
-    url: 'https://app.uniswap.org',
-    icons: ['https://app.uniswap.org/icons/hskswap-icon.svg'],
+    name: 'HSKSwap',
+    description: 'HSKSwap Interface',
+    url: typeof window !== 'undefined' ? window.location.origin : 'https://app.uniswap.org',
+    icons: [typeof window !== 'undefined' ? `${window.location.origin}/icons/hskswap-icon.svg` : 'https://app.uniswap.org/icons/hskswap-icon.svg'],
   },
   qrModalOptions: {
     themeVariables: {
@@ -75,8 +75,8 @@ export function uniswapWalletConnect() {
       ...wc,
       id: 'uniswapWalletConnect',
       type: 'uniswapWalletConnect',
-      name: 'Uniswap Wallet',
-      icon: 'https://app.uniswap.org/icons/hskswap-icon.svg',
+      name: 'HSKSwap Wallet',
+      icon: typeof window !== 'undefined' ? `${window.location.origin}/icons/hskswap-icon.svg` : 'https://app.uniswap.org/icons/hskswap-icon.svg',
     }
   })
 }
