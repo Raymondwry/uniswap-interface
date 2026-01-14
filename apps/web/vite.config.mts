@@ -350,7 +350,22 @@ export default defineConfig(({ mode }) => {
       proxy: {
         ...(ENABLE_PROXY ? {
           '/entry-gateway': createEntryGatewayProxy({ getLogger })
-        } : {})}
+        } : {}),
+        // HSK Subgraph 代理 - 解决 CORS 问题
+        '/hsk-subgraph': {
+          target: 'https://graphnode-testnet.hashkeychain.net',
+          changeOrigin: true,
+          secure: true,
+          rewrite: (path) => path.replace(/^\/hsk-subgraph/, '/subgraphs/name/uniswap-v3/hsk-test'),
+          configure: (proxy) => {
+            proxy.on('proxyReq', (proxyReq, req) => {
+              if (DEBUG_PROXY) {
+                console.log(`[HSK Subgraph Proxy] ${req.method} ${req.url}`)
+              }
+            })
+          },
+        },
+      }
     },
 
     build: {

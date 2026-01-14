@@ -103,7 +103,8 @@ function DisconnectedWalletView() {
           </Button>
         </Flex>
       </Flex>
-      <Flex gap="$gap20" mb="$spacing24">
+      {/* 未连接钱包时隐藏 "providing liquidity" 和 "hooks on v4" 内容 */}
+      {/* <Flex gap="$gap20" mb="$spacing24">
         <Flex row gap="$gap12" $sm={{ flexDirection: 'column' }}>
           <LearnMoreTile
             width="100%"
@@ -118,7 +119,7 @@ function DisconnectedWalletView() {
             link={uniswapUrls.helpArticleUrls.v4HooksInfo}
           />
         </Flex>
-      </Flex>
+      </Flex> */}
     </Flex>
   )
 }
