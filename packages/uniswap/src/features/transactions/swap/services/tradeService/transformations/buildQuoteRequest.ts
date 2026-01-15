@@ -121,14 +121,31 @@ export interface ParsedTradeInput {
 
 export function parseTradeInputForTradingApiQuote(input: UseTradeArgs): ParsedTradeInput {
   const { currencyIn, currencyOut, requestTradeType } = parseQuoteCurrencies(input)
+  const tokenInChainId = toTradingApiSupportedChainId(currencyIn?.chainId)
+  const tokenOutChainId = toTradingApiSupportedChainId(currencyOut?.chainId)
+  
+  // Debug log
+  if (typeof window !== 'undefined') {
+    console.log('[parseTradeInputForTradingApiQuote] Parsing input:', {
+      currencyIn: currencyIn?.symbol,
+      currencyOut: currencyOut?.symbol,
+      currencyInChainId: currencyIn?.chainId,
+      currencyOutChainId: currencyOut?.chainId,
+      tokenInChainId,
+      tokenOutChainId,
+      amountSpecified: input.amountSpecified?.toExact(),
+      hasAmountSpecified: !!input.amountSpecified,
+    })
+  }
+  
   return {
     currencyIn,
     currencyOut,
     amount: input.amountSpecified,
     requestTradeType,
     activeAccountAddress: input.account?.address,
-    tokenInChainId: toTradingApiSupportedChainId(currencyIn?.chainId),
-    tokenOutChainId: toTradingApiSupportedChainId(currencyOut?.chainId),
+    tokenInChainId,
+    tokenOutChainId,
     tokenInAddress: getTokenAddressForApi(currencyIn),
     tokenOutAddress: getTokenAddressForApi(currencyOut),
     generatePermitAsTransaction: input.generatePermitAsTransaction,
@@ -140,17 +157,32 @@ export function parseTradeInputForTradingApiQuote(input: UseTradeArgs): ParsedTr
 // Takes parsed input and returns validated input or undefined
 export function validateParsedInput(input: ParsedTradeInput): ValidatedTradeInput | undefined {
   // Check all conditions that would make the input invalid
+  // Reject zero amount - quote should not be fetched when amount is 0
   if (
     !input.tokenInChainId ||
     !input.tokenOutChainId ||
     !input.tokenInAddress ||
     !input.tokenOutAddress ||
     !input.amount ||
+    isZeroAmount(input.amount) ||
     !input.currencyIn ||
     !input.currencyOut ||
-    isZeroAmount(input.amount) ||
     areCurrenciesEqual(input.currencyIn, input.currencyOut)
   ) {
+    // Debug log to understand why validation fails
+    if (typeof window !== 'undefined') {
+      console.log('[validateParsedInput] Validation failed:', {
+        tokenInChainId: input.tokenInChainId,
+        tokenOutChainId: input.tokenOutChainId,
+        tokenInAddress: input.tokenInAddress,
+        tokenOutAddress: input.tokenOutAddress,
+        hasAmount: !!input.amount,
+        amountValue: input.amount?.toExact(),
+        currencyIn: input.currencyIn?.symbol,
+        currencyOut: input.currencyOut?.symbol,
+        areCurrenciesEqual: areCurrenciesEqual(input.currencyIn, input.currencyOut),
+      })
+    }
     return undefined
   }
 

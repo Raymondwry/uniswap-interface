@@ -128,7 +128,16 @@ export function TransactionSettings({
   return (
     <>
       <ViewOnlyModal isOpen={isViewOnlyModalVisible} onDismiss={handleHideViewOnlyModal} />
-      <Flex row justifyContent={position === 'absolute' ? 'space-between' : 'flex-end'} alignItems="center" position={position} top={topAlignment} right={rightAlignment} left={rightAlignment} zIndex="$default">
+      <Flex
+        row
+        justifyContent={position === 'absolute' ? 'space-between' : 'flex-end'}
+        alignItems="center"
+        position={position}
+        top={topAlignment}
+        right={rightAlignment}
+        left={rightAlignment}
+        zIndex="$default"
+      >
         {/* Swap text button - only show when absolutely positioned */}
         {position === 'absolute' && (
           <SwapTextButton>
@@ -146,7 +155,12 @@ export function TransactionSettings({
           >
             <Flex>
               <Popover.Trigger>
-                <TouchableArea testID={testID ?? TestID.TransactionSettings} onPress={onPressTransactionSettings} width={32} height={32}>
+                <TouchableArea
+                  testID={testID ?? TestID.TransactionSettings}
+                  width={32}
+                  height={32}
+                  onPress={onPressTransactionSettings}
+                >
                   {CustomSettingsButton ?? (
                     <TransactionSettingsButton
                       contentColor={iconColor}

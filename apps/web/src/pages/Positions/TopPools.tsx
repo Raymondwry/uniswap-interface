@@ -56,12 +56,35 @@ export function TopPools({ chainId }: { chainId: UniverseChainId | null }) {
         : parseFloat(String(b.totalLiquidity?.value || '0'))
       return tvlB - tvlA
     })
-    console.log('[TopPools] 排序后的 pools:', sorted.length, sorted.map(p => ({
+    console.log('[TopPools] 排序后的 pools (前6个):', sorted.slice(0, 6).map(p => ({
       id: p.id,
       token0: p.token0?.symbol,
       token1: p.token1?.symbol,
       tvl: p.totalLiquidity?.value
     })))
+    // 输出所有 pools 的完整数据
+    console.log('[TopPools] 所有 pools 数据 (完整):', {
+      totalCount: sorted.length,
+      allPools: sorted.map(p => ({
+        id: p.id,
+        address: p.address,
+        token0: {
+          symbol: p.token0?.symbol,
+          name: p.token0?.name,
+          address: p.token0?.address,
+        },
+        token1: {
+          symbol: p.token1?.symbol,
+          name: p.token1?.name,
+          address: p.token1?.address,
+        },
+        totalLiquidity: p.totalLiquidity?.value,
+        feeTier: p.feeTier,
+        volume24h: p.volume24h?.value,
+        volume30d: p.volume30d?.value,
+        txCount: p.txCount,
+      }))
+    })
     return sorted
   }, [hskPools])
 

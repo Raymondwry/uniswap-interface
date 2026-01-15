@@ -1,20 +1,19 @@
 // Reown AppKit configuration
-import React from 'react'
-import { UNISWAP_WEB_URL } from 'uniswap/src/constants/urls'
-// biome-ignore lint/style/noRestrictedImports: wagmi account hook needed for wallet integration
-import { useAccount as useWagmiAccount } from 'wagmi'
 
+// Import HashKey networks from Reown AppKit (matching hsk-staking-launchpad)
+import { type AppKitNetwork, hashkey, hashkeyTestnet } from '@reown/appkit/networks'
 // Import Reown AppKit - use ES6 import syntax for Vite compatibility (matching hsk-staking-launchpad)
-import { 
+import {
   createAppKit,
-  useAppKit as useAppKitBase, 
   useAppKitAccount as useAppKitAccountBase,
+  useAppKit as useAppKitBase,
   useDisconnect as useDisconnectBase,
   useWalletInfo as useWalletInfoBase,
 } from '@reown/appkit/react'
 import { WagmiAdapter } from '@reown/appkit-adapter-wagmi'
-// Import HashKey networks from Reown AppKit (matching hsk-staking-launchpad)
-import { type AppKitNetwork, hashkey, hashkeyTestnet } from '@reown/appkit/networks'
+import React from 'react'
+// biome-ignore lint/style/noRestrictedImports: wagmi account hook needed for wallet integration
+import { useAccount as useWagmiAccount } from 'wagmi'
 
 if (process.env.REACT_APP_WALLET_CONNECT_PROJECT_ID === undefined) {
   throw new Error('REACT_APP_WALLET_CONNECT_PROJECT_ID must be a defined environment variable')
@@ -89,7 +88,7 @@ const modal = createAppKit({
   //   description: 'HSKSwap Interface',
   //   url: typeof window !== 'undefined' ? window.location.origin : UNISWAP_WEB_URL,
   //   icons: [
-  //     typeof window !== 'undefined' 
+  //     typeof window !== 'undefined'
   //       ? `${window.location.origin}/icons/hskswap-icon.svg`
   //       : `${UNISWAP_WEB_URL}icons/hskswap-icon.svg`
   //   ],
@@ -136,7 +135,7 @@ export const useAppKitAccount = () => {
   const appKitAccount = useAppKitAccountBase()
   // Also get account from Wagmi to ensure consistency
   const wagmiAccount = useWagmiAccount()
-  
+
   // Prefer Wagmi account if available, otherwise fall back to AppKit account
   return {
     address: wagmiAccount.address ?? appKitAccount.address,
@@ -150,7 +149,7 @@ export const useAppKitAccount = () => {
 export const useAppKitConnectionStatus = () => {
   const wagmiAccount = useWagmiAccount()
   const account = useAppKitAccount()
-  
+
   return {
     isConnecting: wagmiAccount.status === 'connecting' || wagmiAccount.status === 'reconnecting',
     isConnected: account.isConnected,
@@ -160,4 +159,3 @@ export const useAppKitConnectionStatus = () => {
 // Export additional hooks for wallet management
 export const useDisconnect = useDisconnectBase
 export const useWalletInfo = useWalletInfoBase
-

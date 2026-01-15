@@ -32,4 +32,3 @@ export const [SettingsCustom, AnimatedSettingsCustom] = createIcon({
   ),
   defaultFill: '#94A3B8',
 })
-

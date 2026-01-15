@@ -3,6 +3,7 @@ import type { ComponentProps } from 'react'
 import type { FlexProps } from 'ui/src'
 import { Flex, Text } from 'ui/src'
 import { chainIdToPlatform } from 'uniswap/src/features/platforms/utils/chains'
+import { useSlippageSettings } from 'uniswap/src/features/transactions/components/settings/settingsConfigurations/slippage/useSlippageSettings'
 import type { TransactionSettingConfig } from 'uniswap/src/features/transactions/components/settings/types'
 import { filterSettingsByPlatform } from 'uniswap/src/features/transactions/components/settings/utils'
 import { TransactionModalInnerContainer } from 'uniswap/src/features/transactions/components/TransactionModal/TransactionModal'
@@ -10,8 +11,6 @@ import { useTransactionModalContext } from 'uniswap/src/features/transactions/co
 import { SwapFormSettings } from 'uniswap/src/features/transactions/swap/components/SwapFormSettings/SwapFormSettings'
 import { Slippage } from 'uniswap/src/features/transactions/swap/components/SwapFormSettings/settingsConfigurations/slippage/Slippage/Slippage'
 import { TradeRoutingPreference } from 'uniswap/src/features/transactions/swap/components/SwapFormSettings/settingsConfigurations/TradeRoutingPreference/TradeRoutingPreference'
-import { TransactionSettingsButtonWithSlippage } from 'uniswap/src/features/transactions/components/settings/TransactionSettingsButtonWithSlippage'
-import { useSlippageSettings } from 'uniswap/src/features/transactions/components/settings/settingsConfigurations/slippage/useSlippageSettings'
 import { SwapFormCurrencyInputPanel } from 'uniswap/src/features/transactions/swap/form/SwapFormScreen/SwapFormCurrencyInputPanel'
 import { SwapFormCurrencyOutputPanel } from 'uniswap/src/features/transactions/swap/form/SwapFormScreen/SwapFormCurrencyOutputPanel'
 import { SwapFormDecimalPad } from 'uniswap/src/features/transactions/swap/form/SwapFormScreen/SwapFormDecimalPad/SwapFormDecimalPad'
@@ -104,7 +103,6 @@ function SwapFormContent({
   return (
     <Flex grow gap="$spacing8" justifyContent="space-between">
       <Flex gap="$spacing4" animation="quick" exitStyle={EXIT_STYLE} grow={isExtensionApp}>
-        
         {/* Original Swap+Settings button moved here to occupy space within the border */}
         {!hideSettings && (
           <>
@@ -114,7 +112,13 @@ function SwapFormContent({
                 Swap
               </Text>
               {/* Settings button */}
-              <SwapFormSettings settings={filteredSettings} isBridgeTrade={isBridgeTrade} position="static" adjustTopAlignment={false} adjustRightAlignment={false} />
+              <SwapFormSettings
+                settings={filteredSettings}
+                isBridgeTrade={isBridgeTrade}
+                position="static"
+                adjustTopAlignment={false}
+                adjustRightAlignment={false}
+              />
             </Flex>
             {/* Border below Swap+Settings with 8px left/right extension */}
             <Flex width="calc(100% + 48px)" height={1} backgroundColor="$surface3" ml={-24} mr={-24} />

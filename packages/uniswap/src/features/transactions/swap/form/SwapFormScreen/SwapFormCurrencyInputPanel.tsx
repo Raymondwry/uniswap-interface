@@ -59,7 +59,8 @@ export function SwapFormCurrencyInputPanel(): JSX.Element {
     onToggleIsFiatMode: s.onToggleIsFiatMode,
   }))
 
-  const focusedStyles = useCurrencyInputFocusedStyle(focusOnCurrencyField === CurrencyField.INPUT)
+  const isFocused = focusOnCurrencyField === CurrencyField.INPUT
+  const focusedStyles = useCurrencyInputFocusedStyle(isFocused)
 
   return (
     <Trace section={SectionName.CurrencyInputPanel}>
@@ -71,6 +72,11 @@ export function SwapFormCurrencyInputPanel(): JSX.Element {
         overflow="hidden"
         pb={currencies[CurrencyField.INPUT] ? '$spacing4' : '$none'}
         {...focusedStyles}
+        borderColor={isFocused ? focusedStyles.borderColor : '$surface3'}
+        hoverStyle={{
+          ...focusedStyles.hoverStyle,
+          borderColor: '$surface3Hovered',
+        }}
       >
         <CurrencyInputPanel
           ref={inputRef}

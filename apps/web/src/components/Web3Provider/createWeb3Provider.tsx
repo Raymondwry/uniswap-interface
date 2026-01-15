@@ -1,7 +1,7 @@
 import { CoinbaseWalletAdapter } from '@solana/wallet-adapter-coinbase'
 import { WalletProvider as SolanaWalletProvider } from '@solana/wallet-adapter-react'
-import { SolanaSignerUpdater } from 'components/Web3Provider/signSolanaTransaction'
 import { AppKitProvider, wagmiAdapter } from 'components/Web3Provider/reownConfig'
+import { SolanaSignerUpdater } from 'components/Web3Provider/signSolanaTransaction'
 import React, { type PropsWithChildren, type ReactNode, useMemo } from 'react'
 import { useWalletCapabilitiesStateEffect } from 'state/walletCapabilities/hooks/useWalletCapabilitiesStateEffect'
 import { type Config, WagmiProvider } from 'wagmi'

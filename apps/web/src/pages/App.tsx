@@ -53,35 +53,6 @@ export default function App() {
     }
   }, [account.chainId])
 
-  // Console log current wallet chain
-  useEffect(() => {
-    console.log('钱包连接状态:', {
-      isConnected: account.isConnected,
-      address: account.address,
-      chainId: account.chainId,
-      status: account.status,
-      connector: account.connector?.name,
-    })
-
-    if (account.chainId) {
-      try {
-        const chainInfo = getChainInfo(account.chainId)
-        console.log('当前钱包所在的链:', {
-          chainId: account.chainId,
-          chainName: chainInfo.label,
-          chainInfo: chainInfo,
-        })
-      } catch (error) {
-        console.log('当前钱包所在的链 (chainId):', account.chainId, '错误:', error)
-      }
-    } else {
-      if (account.isConnected) {
-        console.log('钱包已连接，但链信息不可用。地址:', account.address)
-      } else {
-        console.log('当前钱包未连接')
-      }
-    }
-  }, [account.chainId, account.isConnected, account.address, account.status, account.connector])
 
   const metaTags = useDynamicMetatags()
   const staticTitle = findRouteByPath(pathname)?.getTitle(pathname) ?? 'Uniswap Interface'

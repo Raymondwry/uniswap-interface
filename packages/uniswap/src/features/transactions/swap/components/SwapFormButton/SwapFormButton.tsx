@@ -1,17 +1,20 @@
 import { useState } from 'react'
-import { Button, Flex, styled, useIsShortMobileDevice } from 'ui/src'
 import { useTranslation } from 'react-i18next'
+import { Button, Flex, styled, useIsShortMobileDevice } from 'ui/src'
+import { useConnectionStatus } from 'uniswap/src/features/accounts/store/hooks'
+import { useIsWebFORNudgeEnabled } from 'uniswap/src/features/providers/webForNudgeProvider'
 import { useTransactionModalContext } from 'uniswap/src/features/transactions/components/TransactionModal/TransactionModalContext'
+import { SwapConfirmationModal } from 'uniswap/src/features/transactions/swap/components/SwapConfirmationModal/SwapConfirmationModal'
 import { useIsSwapButtonDisabled } from 'uniswap/src/features/transactions/swap/components/SwapFormButton/hooks/useIsSwapButtonDisabled'
+import { useIsMissingPlatformWallet } from 'uniswap/src/features/transactions/swap/components/SwapFormButton/hooks/useIsMissingPlatformWallet'
 import { useIsTradeIndicative } from 'uniswap/src/features/transactions/swap/components/SwapFormButton/hooks/useIsTradeIndicative'
 import { useOnReviewPress } from 'uniswap/src/features/transactions/swap/components/SwapFormButton/hooks/useOnReviewPress'
 import { useSwapFormButtonColors } from 'uniswap/src/features/transactions/swap/components/SwapFormButton/hooks/useSwapFormButtonColors'
 import { useSwapFormButtonText } from 'uniswap/src/features/transactions/swap/components/SwapFormButton/hooks/useSwapFormButtonText'
 import { SwapFormButtonTrace } from 'uniswap/src/features/transactions/swap/components/SwapFormButton/SwapFormButtonTrace'
-import { SwapConfirmationModal } from 'uniswap/src/features/transactions/swap/components/SwapConfirmationModal/SwapConfirmationModal'
 import { useSwapFormStoreDerivedSwapInfo } from 'uniswap/src/features/transactions/swap/stores/swapFormStore/useSwapFormStore'
-import { useIsWebFORNudgeEnabled } from 'uniswap/src/features/providers/webForNudgeProvider'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
+import { isWebPlatform } from 'utilities/src/platform'
 import { useEvent } from 'utilities/src/react/hooks'
 
 export const SWAP_BUTTON_TEXT_VARIANT = 'buttonLabel1'
@@ -22,7 +25,6 @@ const WhiteButtonText = styled(Button.Text, {
     color: '#FFFFFF',
   },
 })
-
 
 const GradientWrapper = styled(Flex, {
   borderRadius: 12,
@@ -42,6 +44,21 @@ const GradientWrapper = styled(Flex, {
     opacity: 0.8,
   },
 })
+
+// Global function to connect wallet - can be set by platform-specific code
+// Type declaration for the global connect wallet function
+declare global {
+  // eslint-disable-next-line no-var
+  var __uniswapConnectWallet: (() => void) | undefined
+}
+
+const getConnectWalletFunction = (): (() => void) | undefined => {
+  // Check if we're on web platform and if a connect function is available
+  if (typeof window !== 'undefined' && typeof window.__uniswapConnectWallet === 'function') {
+    return window.__uniswapConnectWallet
+  }
+  return undefined
+}
 
 // TODO(SWAP-573): Co-locate button action/color/text logic instead of separating the very-coupled UI state
 export function SwapFormButton({ tokenColor }: { tokenColor?: string }): JSX.Element {
@@ -67,11 +84,25 @@ export function SwapFormButton({ tokenColor }: { tokenColor?: string }): JSX.Ele
   const { t } = useTranslation()
   const swapTokensText = t('empty.swap.button.text')
 
+  // Check connection status
+  const { isDisconnected } = useConnectionStatus()
+  const { chainId } = useSwapFormStoreDerivedSwapInfo((s) => ({
+    chainId: s.chainId,
+  }))
+  const isMissingPlatformWallet = useIsMissingPlatformWallet(chainId)
+  const connectWallet = getConnectWalletFunction()
+
   const handleButtonPress = useEvent(() => {
+    // If wallet is disconnected or missing, try to connect
+    if ((isDisconnected || isMissingPlatformWallet) && connectWallet) {
+      connectWallet()
+      return
+    }
+
     // Show confirmation modal when button text is "Swap Tokens" (either from WebFORNudge or other conditions)
     // Check both the flag and the actual button text to be safe
     const shouldShowModal = (isWebFORNudgeEnabled || buttonText === swapTokensText) && !swapRedirectCallback
-    
+
     // Debug: log the values to help troubleshoot
     if (process.env.NODE_ENV === 'development') {
       console.log('SwapFormButton press:', {
@@ -82,7 +113,7 @@ export function SwapFormButton({ tokenColor }: { tokenColor?: string }): JSX.Ele
         swapRedirectCallback,
       })
     }
-    
+
     if (shouldShowModal) {
       setIsSwapConfirmationModalOpen(true)
     } else {
@@ -107,14 +138,10 @@ export function SwapFormButton({ tokenColor }: { tokenColor?: string }): JSX.Ele
             <GradientWrapper width="100%">
               <Button
                 variant={buttonVariant}
-                emphasis={buttonEmphasis}
-                // TODO(WALL-7186): make loading state more representative of the trade state
-                loading={shouldShowLoading}
                 isDisabled={disabled}
                 backgroundColor="transparent"
                 size={isShortMobileDevice ? 'small' : 'large'}
                 testID={TestID.ReviewSwap}
-                onPress={handleButtonPress}
                 width="100%"
                 borderRadius={12}
                 hoverStyle={{
@@ -125,6 +152,10 @@ export function SwapFormButton({ tokenColor }: { tokenColor?: string }): JSX.Ele
                   backgroundColor: 'transparent',
                   borderColor: 'transparent',
                 }}
+                onPress={handleButtonPress}
+                emphasis={buttonEmphasis}
+                // TODO(WALL-7186): make loading state more representative of the trade state
+                loading={shouldShowLoading}
               >
                 <WhiteButtonText>{buttonText}</WhiteButtonText>
               </Button>
@@ -134,9 +165,9 @@ export function SwapFormButton({ tokenColor }: { tokenColor?: string }): JSX.Ele
       </Flex>
       <SwapConfirmationModal
         isOpen={isSwapConfirmationModalOpen}
+        derivedSwapInfo={derivedSwapInfo}
         onClose={handleCloseModal}
         onConfirm={handleConfirmSwap}
-        derivedSwapInfo={derivedSwapInfo}
       />
     </>
   )

@@ -6,7 +6,7 @@ import { WalletIconWithRipple } from 'components/WalletModal/WalletIconWithRippl
 import { useConnectionStatus } from 'features/accounts/store/hooks'
 import { ExternalWallet } from 'features/accounts/store/types'
 import { useConnectWallet } from 'features/wallet/connection/hooks/useConnectWallet'
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { AnimatePresence, Button, Flex, HeightAnimator, Text } from 'ui/src'
 import SOLANA_ICON from 'ui/src/assets/logos/png/solana-logo.png'
@@ -47,7 +47,7 @@ function useApplicablePendingWallet() {
 /**
  * Tracks which wallet needs the Solana prompt. Persists after EVM completes to keep modal open.
  * Different from useApplicablePendingWallet which becomes undefined once connection starts.
- * 
+ *
  * DISABLED: Solana prompt is disabled for HSKSwap.
  */
 function useSolanaWalletToPrompt(applicablePendingWallet: ExternalWallet | undefined) {

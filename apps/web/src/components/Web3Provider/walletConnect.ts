@@ -37,7 +37,11 @@ export const WC_PARAMS = {
     name: 'HSKSwap',
     description: 'HSKSwap Interface',
     url: typeof window !== 'undefined' ? window.location.origin : 'https://app.uniswap.org',
-    icons: [typeof window !== 'undefined' ? `${window.location.origin}/icons/hskswap-icon.svg` : 'https://app.uniswap.org/icons/hskswap-icon.svg'],
+    icons: [
+      typeof window !== 'undefined'
+        ? `${window.location.origin}/icons/hskswap-icon.svg`
+        : 'https://app.uniswap.org/icons/hskswap-icon.svg',
+    ],
   },
   qrModalOptions: {
     themeVariables: {
@@ -76,7 +80,10 @@ export function uniswapWalletConnect() {
       id: 'uniswapWalletConnect',
       type: 'uniswapWalletConnect',
       name: 'HSKSwap Wallet',
-      icon: typeof window !== 'undefined' ? `${window.location.origin}/icons/hskswap-icon.svg` : 'https://app.uniswap.org/icons/hskswap-icon.svg',
+      icon:
+        typeof window !== 'undefined'
+          ? `${window.location.origin}/icons/hskswap-icon.svg`
+          : 'https://app.uniswap.org/icons/hskswap-icon.svg',
     }
   })
 }

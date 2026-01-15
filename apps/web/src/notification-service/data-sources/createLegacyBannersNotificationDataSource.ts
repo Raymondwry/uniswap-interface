@@ -207,13 +207,13 @@ async function checkNoUniswapInterfaceFeesBanner(isDarkMode: boolean): Promise<I
  * Check if SolanaPromo banner should be shown based on feature flag.
  * Returns both banner and modal (modal is chained).
  * The processor will filter based on tracked state.
- * 
+ *
  * DISABLED: Solana promo banner and modal are disabled for HSKSwap.
  */
 async function checkSolanaPromo(isDarkMode: boolean): Promise<InAppNotification[]> {
   // Always return empty array to disable Solana promo
   return []
-  
+
   // Original implementation (disabled):
   // const isEnabled = getFeatureFlag(FeatureFlags.SolanaPromo)
   // if (!isEnabled) {

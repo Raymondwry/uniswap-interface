@@ -62,7 +62,7 @@ export function CurrencyInputPanelHeader({
   }
 
   const showInputPresets =
-    (isWebAppDesktop || isExtensionApp) && currencyField === CurrencyField.INPUT && currencyBalance
+    (isWebAppDesktop || isExtensionApp) && currencyField === CurrencyField.INPUT && currencyInfo
 
   return (
     <Flex

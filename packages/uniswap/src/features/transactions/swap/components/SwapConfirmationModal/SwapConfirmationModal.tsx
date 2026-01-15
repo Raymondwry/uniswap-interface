@@ -1,23 +1,22 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Flex, Text, TouchableArea } from 'ui/src'
+import { Flex, styled, Text, TouchableArea } from 'ui/src'
 import { Chevron } from 'ui/src/components/icons/Chevron'
-import { X } from 'ui/src/components/icons/X'
 import { InfoCircle } from 'ui/src/components/icons/InfoCircle'
-import { Modal } from 'uniswap/src/components/modals/Modal'
+import { X } from 'ui/src/components/icons/X'
 import { AdaptiveWebModal } from 'ui/src/components/modal/AdaptiveWebModal'
 import { CurrencyLogo } from 'uniswap/src/components/CurrencyLogo/CurrencyLogo'
+import { Modal } from 'uniswap/src/components/modals/Modal'
 import type { CurrencyInfo } from 'uniswap/src/features/dataApi/types'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
+import { ModalName } from 'uniswap/src/features/telemetry/constants'
 import { useUSDCValue } from 'uniswap/src/features/transactions/hooks/useUSDCPrice'
+import { useSwapFormScreenStore } from 'uniswap/src/features/transactions/swap/form/stores/swapFormScreenStore/useSwapFormScreenStore'
+import { usePriceUXEnabled } from 'uniswap/src/features/transactions/swap/hooks/usePriceUXEnabled'
 import type { DerivedSwapInfo } from 'uniswap/src/features/transactions/swap/types/derivedSwapInfo'
 import { getTradeAmounts } from 'uniswap/src/features/transactions/swap/utils/getTradeAmounts'
-import { usePriceUXEnabled } from 'uniswap/src/features/transactions/swap/hooks/usePriceUXEnabled'
 import { CurrencyField } from 'uniswap/src/types/currency'
 import { NumberType } from 'utilities/src/format/types'
-import { styled } from 'ui/src'
 import { isWebPlatform } from 'utilities/src/platform'
-import { ModalName } from 'uniswap/src/features/telemetry/constants'
-import { useSwapFormScreenStore } from 'uniswap/src/features/transactions/swap/form/stores/swapFormScreenStore/useSwapFormScreenStore'
 
 const ModalContainer = styled(Flex, {
   width: 440,
@@ -150,7 +149,8 @@ export function SwapConfirmationModal({
   const formCurrencies = useSwapFormScreenStore((s) => s.currencies)
   const sellCurrencyInfo = formCurrencies[CurrencyField.INPUT] ?? undefined
   // Use buy currency from form if available, otherwise fallback to derivedSwapInfo
-  const buyCurrencyInfo = formCurrencies[CurrencyField.OUTPUT] ?? derivedSwapInfo.currencies[CurrencyField.OUTPUT] ?? undefined
+  const buyCurrencyInfo =
+    formCurrencies[CurrencyField.OUTPUT] ?? derivedSwapInfo.currencies[CurrencyField.OUTPUT] ?? undefined
 
   // TokenRow component
   interface TokenRowProps {
@@ -252,121 +252,107 @@ export function SwapConfirmationModal({
         overflow: 'hidden',
       }}
     >
-        <Header>
-          <Text
-            style={{
-              fontFamily: "'Aleo', sans-serif",
-              fontStyle: 'normal',
-              fontWeight: 500,
-              fontSize: 18,
-              lineHeight: 27,
-              color: '#FFFFFF',
-            }}
-          >
-            You're swapping
-          </Text>
-          <TouchableArea onPress={onClose} width={32} height={32}>
-            <Flex alignItems="center" justifyContent="center" width={32} height={32}>
-              <X color="#94A3B8" size={24} />
+      <Header>
+        <Text
+          style={{
+            fontFamily: "'Aleo', sans-serif",
+            fontStyle: 'normal',
+            fontWeight: 500,
+            fontSize: 18,
+            lineHeight: 27,
+            color: '#FFFFFF',
+          }}
+        >
+          You're swapping
+        </Text>
+        <TouchableArea width={32} height={32} onPress={onClose}>
+          <Flex alignItems="center" justifyContent="center" width={32} height={32}>
+            <X color="#94A3B8" size={24} />
+          </Flex>
+        </TouchableArea>
+      </Header>
+
+      <Content>
+        <Flex flexDirection="column" gap={18} width="100%" alignItems="flex-start">
+          {/* Sell Token (Input) */}
+          <TokenRowComponent
+            currencyInfo={sellCurrencyInfo}
+            amount={formattedTokenAmountIn}
+            fiatAmount={formattedFiatAmountIn}
+            paddingX={24}
+            hasValidData={!!sellCurrencyInfo}
+          />
+
+          {/* Arrow */}
+          <Flex alignItems="center" justifyContent="center" width="100%" px={18}>
+            <Flex
+              width={16}
+              height={16}
+              alignItems="center"
+              justifyContent="center"
+              style={{ transform: 'rotate(-90deg)' }}
+            >
+              <Chevron color="#94A3B8" size={16} />
             </Flex>
-          </TouchableArea>
-        </Header>
+          </Flex>
 
-        <Content>
-          <Flex flexDirection="column" gap={18} width="100%" alignItems="flex-start">
-            {/* Sell Token (Input) */}
-            <TokenRowComponent
-              currencyInfo={sellCurrencyInfo}
-              amount={formattedTokenAmountIn}
-              fiatAmount={formattedFiatAmountIn}
-              paddingX={24}
-              hasValidData={!!sellCurrencyInfo}
-            />
+          {/* Buy Token (Output) */}
+          <TokenRowComponent
+            currencyInfo={buyCurrencyInfo}
+            amount={formattedTokenAmountOut}
+            fiatAmount={formattedFiatAmountOut}
+            paddingX={18}
+            hasValidData={!!buyCurrencyInfo}
+          />
+        </Flex>
 
-            {/* Arrow */}
-            <Flex alignItems="center" justifyContent="center" width="100%" px={18}>
+        {/* Fees Section */}
+        <FeesSection>
+          <Flex flexDirection="row" alignItems="center" gap={16} width="100%" height={20} py={0}>
+            <Flex flex={1} height={1} backgroundColor="#545C69" />
+            <TouchableArea
+              style={{
+                width: 98,
+                height: 20,
+                borderRadius: 8,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+              }}
+              onPress={() => setIsExpanded((prev) => !prev)}
+            >
+              <Text
+                style={{
+                  fontFamily: "'Aleo', sans-serif",
+                  fontStyle: 'normal',
+                  fontWeight: 500,
+                  fontSize: 14,
+                  lineHeight: 20,
+                  color: '#94A3B8',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {isExpanded ? 'Show less' : 'Show more'}
+              </Text>
               <Flex
                 width={16}
                 height={16}
                 alignItems="center"
                 justifyContent="center"
-                style={{ transform: 'rotate(-90deg)' }}
+                style={{
+                  transform: isExpanded ? 'rotate(-90deg)' : 'rotate(90deg)',
+                }}
               >
                 <Chevron color="#94A3B8" size={16} />
               </Flex>
-            </Flex>
-
-            {/* Buy Token (Output) */}
-            <TokenRowComponent
-              currencyInfo={buyCurrencyInfo}
-              amount={formattedTokenAmountOut}
-              fiatAmount={formattedFiatAmountOut}
-              paddingX={18}
-              hasValidData={!!buyCurrencyInfo}
-            />
+            </TouchableArea>
+            <Flex flex={1} height={1} backgroundColor="#545C69" />
           </Flex>
 
-          {/* Fees Section */}
-          <FeesSection>
-            <Flex flexDirection="row" alignItems="center" gap={16} width="100%" height={20} py={0}>
-              <Flex flex={1} height={1} backgroundColor="#545C69" />
-              <TouchableArea
-                onPress={() => setIsExpanded((prev) => !prev)}
-                style={{
-                  width: 98,
-                  height: 20,
-                  borderRadius: 8,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 8,
-                }}
-              >
-                <Text
-                  style={{
-                    fontFamily: "'Aleo', sans-serif",
-                    fontStyle: 'normal',
-                    fontWeight: 500,
-                    fontSize: 14,
-                    lineHeight: 20,
-                    color: '#94A3B8',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {isExpanded ? 'Show less' : 'Show more'}
-                </Text>
-                <Flex
-                  width={16}
-                  height={16}
-                  alignItems="center"
-                  justifyContent="center"
-                  style={{
-                    transform: isExpanded ? 'rotate(-90deg)' : 'rotate(90deg)',
-                  }}
-                >
-                  <Chevron color="#94A3B8" size={16} />
-                </Flex>
-              </TouchableArea>
-              <Flex flex={1} height={1} backgroundColor="#545C69" />
-            </Flex>
-
-            <Flex flexDirection="column" gap={12} width="100%">
-              <Flex flexDirection="row" alignItems="center" justifyContent="space-between" width="100%">
-                <Flex flexDirection="row" alignItems="center" gap={6}>
-                  <Text
-                    style={{
-                      fontFamily: "'Aleo', sans-serif",
-                      fontStyle: 'normal',
-                      fontWeight: 500,
-                      fontSize: 14,
-                      lineHeight: 21,
-                      color: '#94A3B8',
-                    }}
-                  >
-                    Fee
-                  </Text>
-                  <InfoCircle color="#94A3B8" size={16} />
-                </Flex>
+          <Flex flexDirection="column" gap={12} width="100%">
+            <Flex flexDirection="row" alignItems="center" justifyContent="space-between" width="100%">
+              <Flex flexDirection="row" alignItems="center" gap={6}>
                 <Text
                   style={{
                     fontFamily: "'Aleo', sans-serif",
@@ -374,204 +360,217 @@ export function SwapConfirmationModal({
                     fontWeight: 500,
                     fontSize: 14,
                     lineHeight: 21,
-                    color: '#AD81F1',
+                    color: '#94A3B8',
                   }}
                 >
-                  Free
+                  Fee
                 </Text>
+                <InfoCircle color="#94A3B8" size={16} />
               </Flex>
-
-              <Flex flexDirection="row" alignItems="center" justifyContent="space-between" width="100%">
-                <Flex flexDirection="row" alignItems="center" gap={6}>
-                  <Text
-                    style={{
-                      fontFamily: "'Aleo', sans-serif",
-                      fontStyle: 'normal',
-                      fontWeight: 500,
-                      fontSize: 14,
-                      lineHeight: 21,
-                      color: '#94A3B8',
-                    }}
-                  >
-                    Network cost
-                  </Text>
-                  <InfoCircle color="#94A3B8" size={16} />
-                </Flex>
-                <Flex flexDirection="row" alignItems="center" gap={6}>
-                  <Text
-                    style={{
-                      fontFamily: "'Aleo', sans-serif",
-                      fontStyle: 'normal',
-                      fontWeight: 500,
-                      fontSize: 14,
-                      lineHeight: 21,
-                      color: '#FFFFFF',
-                    }}
-                  >
-                    $0.02
-                  </Text>
-                  
-                </Flex>
-              </Flex>
-
-              {isExpanded && (
-                <>
-                  <Flex flexDirection="row" alignItems="center" justifyContent="space-between" width="100%" gap={0}>
-                    <Flex flexDirection="row" alignItems="center" gap={6}>
-                      <Text
-                        style={{
-                          fontFamily: "'Aleo', sans-serif",
-                          fontStyle: 'normal',
-                          fontWeight: 500,
-                          fontSize: 14,
-                          lineHeight: 20,
-                          color: '#94A3B8',
-                        }}
-                      >
-                        Rate
-                      </Text>
-                    </Flex>
-                    <Text
-                      style={{
-                        fontFamily: "'Aleo', sans-serif",
-                        fontStyle: 'normal',
-                        fontWeight: 500,
-                        fontSize: 14,
-                        lineHeight: 20,
-                        color: '#FFFFFF',
-                      }}
-                    >
-                      1 ETH = 3218.57 USDC ($3,218.57)
-                    </Text>
-                  </Flex>
-
-                  <Flex flexDirection="row" alignItems="center" justifyContent="space-between" width="100%" gap={0}>
-                    <Flex flexDirection="row" alignItems="center" gap={6}>
-                      <Text
-                        style={{
-                          fontFamily: "'Aleo', sans-serif",
-                          fontStyle: 'normal',
-                          fontWeight: 500,
-                          fontSize: 14,
-                          lineHeight: 20,
-                          color: '#94A3B8',
-                        }}
-                      >
-                        Max slippage
-                      </Text>
-                      <InfoCircle color="#94A3B8" size={16} />
-                    </Flex>
-                    <Text
-                      style={{
-                        fontFamily: "'Aleo', sans-serif",
-                        fontStyle: 'normal',
-                        fontWeight: 500,
-                        fontSize: 14,
-                        lineHeight: 20,
-                        color: '#FFFFFF',
-                      }}
-                    >
-                      Auto 0.67%
-                    </Text>
-                  </Flex>
-
-                  <Flex flexDirection="row" alignItems="center" justifyContent="space-between" width="100%" gap={0}>
-                    <Flex flexDirection="row" alignItems="center" gap={6}>
-                      <Text
-                        style={{
-                          fontFamily: "'Aleo', sans-serif",
-                          fontStyle: 'normal',
-                          fontWeight: 500,
-                          fontSize: 14,
-                          lineHeight: 20,
-                          color: '#94A3B8',
-                        }}
-                      >
-                        Order routing
-                      </Text>
-                      <InfoCircle color="#94A3B8" size={16} />
-                    </Flex>
-                    <Text
-                      style={{
-                        fontFamily: "'Aleo', sans-serif",
-                        fontStyle: 'normal',
-                        fontWeight: 500,
-                        fontSize: 14,
-                        lineHeight: 20,
-                        color: '#FFFFFF',
-                      }}
-                    >
-                      HSK API
-                    </Text>
-                  </Flex>
-
-                  <Flex flexDirection="row" alignItems="center" justifyContent="space-between" width="100%" gap={0}>
-                    <Flex flexDirection="row" alignItems="center" gap={6}>
-                      <Text
-                        style={{
-                          fontFamily: "'Aleo', sans-serif",
-                          fontStyle: 'normal',
-                          fontWeight: 500,
-                          fontSize: 14,
-                          lineHeight: 20,
-                          color: '#94A3B8',
-                        }}
-                      >
-                        Price impact
-                      </Text>
-                      <InfoCircle color="#94A3B8" size={16} />
-                    </Flex>
-                    <Text
-                      style={{
-                        fontFamily: "'Aleo', sans-serif",
-                        fontStyle: 'normal',
-                        fontWeight: 500,
-                        fontSize: 14,
-                        lineHeight: 20,
-                        color: '#FFFFFF',
-                      }}
-                    >
-                      -0.05%
-                    </Text>
-                  </Flex>
-                </>
-              )}
-            </Flex>
-          </FeesSection>
-
-          {/* Swap Button */}
-          <Flex mt={8} px={18} pb={18} width="100%" alignItems="center">
-            <TouchableArea
-              onPress={onConfirm}
-              style={{
-                flexDirection: 'row',
-                justifyContent: 'center',
-                alignItems: 'center',
-                padding: '16px 18px',
-                width: 404,
-                height: 60,
-                background: 'linear-gradient(90.87deg, #2362DD -1.27%, #2C7FDD 47.58%, #AD81F1 99.78%)',
-                boxShadow: '0px 0px 20px -5px rgba(35, 98, 221, 0.5)',
-                borderRadius: 12,
-              }}
-            >
               <Text
                 style={{
                   fontFamily: "'Aleo', sans-serif",
                   fontStyle: 'normal',
-                  fontWeight: 600,
-                  fontSize: 18,
-                  lineHeight: 28,
-                  color: '#FFFFFF',
-                  textAlign: 'center',
+                  fontWeight: 500,
+                  fontSize: 14,
+                  lineHeight: 21,
+                  color: '#AD81F1',
                 }}
               >
-                Swap Tokens
+                Free
               </Text>
-            </TouchableArea>
+            </Flex>
+
+            <Flex flexDirection="row" alignItems="center" justifyContent="space-between" width="100%">
+              <Flex flexDirection="row" alignItems="center" gap={6}>
+                <Text
+                  style={{
+                    fontFamily: "'Aleo', sans-serif",
+                    fontStyle: 'normal',
+                    fontWeight: 500,
+                    fontSize: 14,
+                    lineHeight: 21,
+                    color: '#94A3B8',
+                  }}
+                >
+                  Network cost
+                </Text>
+                <InfoCircle color="#94A3B8" size={16} />
+              </Flex>
+              <Flex flexDirection="row" alignItems="center" gap={6}>
+                <Text
+                  style={{
+                    fontFamily: "'Aleo', sans-serif",
+                    fontStyle: 'normal',
+                    fontWeight: 500,
+                    fontSize: 14,
+                    lineHeight: 21,
+                    color: '#FFFFFF',
+                  }}
+                >
+                  $0.02
+                </Text>
+              </Flex>
+            </Flex>
+
+            {isExpanded && (
+              <>
+                <Flex flexDirection="row" alignItems="center" justifyContent="space-between" width="100%" gap={0}>
+                  <Flex flexDirection="row" alignItems="center" gap={6}>
+                    <Text
+                      style={{
+                        fontFamily: "'Aleo', sans-serif",
+                        fontStyle: 'normal',
+                        fontWeight: 500,
+                        fontSize: 14,
+                        lineHeight: 20,
+                        color: '#94A3B8',
+                      }}
+                    >
+                      Rate
+                    </Text>
+                  </Flex>
+                  <Text
+                    style={{
+                      fontFamily: "'Aleo', sans-serif",
+                      fontStyle: 'normal',
+                      fontWeight: 500,
+                      fontSize: 14,
+                      lineHeight: 20,
+                      color: '#FFFFFF',
+                    }}
+                  >
+                    1 ETH = 3218.57 USDC ($3,218.57)
+                  </Text>
+                </Flex>
+
+                <Flex flexDirection="row" alignItems="center" justifyContent="space-between" width="100%" gap={0}>
+                  <Flex flexDirection="row" alignItems="center" gap={6}>
+                    <Text
+                      style={{
+                        fontFamily: "'Aleo', sans-serif",
+                        fontStyle: 'normal',
+                        fontWeight: 500,
+                        fontSize: 14,
+                        lineHeight: 20,
+                        color: '#94A3B8',
+                      }}
+                    >
+                      Max slippage
+                    </Text>
+                    <InfoCircle color="#94A3B8" size={16} />
+                  </Flex>
+                  <Text
+                    style={{
+                      fontFamily: "'Aleo', sans-serif",
+                      fontStyle: 'normal',
+                      fontWeight: 500,
+                      fontSize: 14,
+                      lineHeight: 20,
+                      color: '#FFFFFF',
+                    }}
+                  >
+                    Auto 0.67%
+                  </Text>
+                </Flex>
+
+                <Flex flexDirection="row" alignItems="center" justifyContent="space-between" width="100%" gap={0}>
+                  <Flex flexDirection="row" alignItems="center" gap={6}>
+                    <Text
+                      style={{
+                        fontFamily: "'Aleo', sans-serif",
+                        fontStyle: 'normal',
+                        fontWeight: 500,
+                        fontSize: 14,
+                        lineHeight: 20,
+                        color: '#94A3B8',
+                      }}
+                    >
+                      Order routing
+                    </Text>
+                    <InfoCircle color="#94A3B8" size={16} />
+                  </Flex>
+                  <Text
+                    style={{
+                      fontFamily: "'Aleo', sans-serif",
+                      fontStyle: 'normal',
+                      fontWeight: 500,
+                      fontSize: 14,
+                      lineHeight: 20,
+                      color: '#FFFFFF',
+                    }}
+                  >
+                    HSK API
+                  </Text>
+                </Flex>
+
+                <Flex flexDirection="row" alignItems="center" justifyContent="space-between" width="100%" gap={0}>
+                  <Flex flexDirection="row" alignItems="center" gap={6}>
+                    <Text
+                      style={{
+                        fontFamily: "'Aleo', sans-serif",
+                        fontStyle: 'normal',
+                        fontWeight: 500,
+                        fontSize: 14,
+                        lineHeight: 20,
+                        color: '#94A3B8',
+                      }}
+                    >
+                      Price impact
+                    </Text>
+                    <InfoCircle color="#94A3B8" size={16} />
+                  </Flex>
+                  <Text
+                    style={{
+                      fontFamily: "'Aleo', sans-serif",
+                      fontStyle: 'normal',
+                      fontWeight: 500,
+                      fontSize: 14,
+                      lineHeight: 20,
+                      color: '#FFFFFF',
+                    }}
+                  >
+                    -0.05%
+                  </Text>
+                </Flex>
+              </>
+            )}
           </Flex>
-        </Content>
-      </ModalContainer>
+        </FeesSection>
+
+        {/* Swap Button */}
+        <Flex mt={8} px={18} pb={18} width="100%" alignItems="center">
+          <TouchableArea
+            style={{
+              flexDirection: 'row',
+              justifyContent: 'center',
+              alignItems: 'center',
+              padding: '16px 18px',
+              width: 404,
+              height: 60,
+              background: 'linear-gradient(90.87deg, #2362DD -1.27%, #2C7FDD 47.58%, #AD81F1 99.78%)',
+              boxShadow: '0px 0px 20px -5px rgba(35, 98, 221, 0.5)',
+              borderRadius: 12,
+            }}
+            onPress={onConfirm}
+          >
+            <Text
+              style={{
+                fontFamily: "'Aleo', sans-serif",
+                fontStyle: 'normal',
+                fontWeight: 600,
+                fontSize: 18,
+                lineHeight: 28,
+                color: '#FFFFFF',
+                textAlign: 'center',
+              }}
+            >
+              Swap Tokens
+            </Text>
+          </TouchableArea>
+        </Flex>
+      </Content>
+    </ModalContainer>
   )
 
   return (
@@ -602,7 +601,6 @@ export function SwapConfirmationModal({
       {isWebPlatform ? (
         <AdaptiveWebModal
           isOpen={isOpen}
-          onClose={onClose}
           alignment="center"
           adaptToSheet={false}
           borderWidth={0}
@@ -616,6 +614,7 @@ export function SwapConfirmationModal({
             width: 'auto',
             overflow: 'visible',
           }}
+          onClose={onClose}
         >
           {modalContent}
         </AdaptiveWebModal>
@@ -623,7 +622,6 @@ export function SwapConfirmationModal({
         <Modal
           name={ModalName.ConfirmSwap}
           isModalOpen={isOpen}
-          onClose={onClose}
           alignment="center"
           maxWidth={440}
           height="auto"
@@ -634,6 +632,7 @@ export function SwapConfirmationModal({
           pb={0}
           hideHandlebar={true}
           borderWidth={0}
+          onClose={onClose}
         >
           {modalContent}
         </Modal>
@@ -641,4 +640,3 @@ export function SwapConfirmationModal({
     </>
   )
 }
-

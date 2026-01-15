@@ -1,7 +1,6 @@
 import { memo } from 'react'
 import type { ColorTokens, GeneratedIcon } from 'ui/src'
 import { Flex, Tooltip as TooltipComponent } from 'ui/src'
-import { Settings } from 'ui/src/components/icons/Settings'
 import { SettingsCustom } from 'ui/src/components/icons/SettingsCustom'
 import type { IconSizeTokens } from 'ui/src/theme'
 import { TransactionSettingsModalId } from 'uniswap/src/features/transactions/components/settings/stores/TransactionSettingsModalStore/createTransactionSettingsModalStore'
@@ -29,12 +28,13 @@ export const TransactionSettingsButton = memo(
     const IconComponent = CustomIconComponent ?? SettingsCustom
 
     // Check if the icon is SettingsCustom (by checking displayName or comparing function)
-    const isSettingsCustom = !CustomIconComponent || CustomIconComponent === SettingsCustom || CustomIconComponent.displayName === 'SettingsCustom'
+    const isSettingsCustom =
+      !CustomIconComponent ||
+      CustomIconComponent === SettingsCustom ||
+      CustomIconComponent.displayName === 'SettingsCustom'
 
     // Use 32x32 size for SettingsCustom, otherwise use prop or default
-    const iconSize = isSettingsCustom
-      ? 32
-      : iconSizeProp ?? (isWebPlatform ? '$icon.20' : '$icon.24')
+    const iconSize = isSettingsCustom ? 32 : (iconSizeProp ?? (isWebPlatform ? '$icon.20' : '$icon.24'))
 
     return (
       <Flex

@@ -1,12 +1,10 @@
 import { PrefetchBalancesWrapper } from 'appGraphql/data/apollo/AdaptiveTokenBalancesProvider'
 import type { Currency } from '@uniswap/sdk-core'
 import { FeatureFlags, useFeatureFlag } from '@universe/gating'
-import { useAppKit } from 'components/Web3Provider/reownConfig'
 import { SwapBottomCard } from 'components/SwapBottomCard'
-import { SwitchLocaleLink } from 'components/SwitchLocaleLink'
 import { PageWrapper } from 'components/swap/styled'
+import { useAppKit } from 'components/Web3Provider/reownConfig'
 import { useAccount } from 'hooks/useAccount'
-import { useDeferredComponent } from 'hooks/useDeferredComponent'
 import { PageType, useIsPage } from 'hooks/useIsPage'
 import { useModalState } from 'hooks/useModalState'
 import { useResetOverrideOneClickSwapFlag } from 'pages/Swap/settings/OneClickSwap'
@@ -29,7 +27,6 @@ import { zIndexes } from 'ui/src/theme'
 import { useUniswapContext } from 'uniswap/src/contexts/UniswapContext'
 import { useIsModeMismatch } from 'uniswap/src/features/chains/hooks/useEnabledChains'
 import { UniverseChainId } from 'uniswap/src/features/chains/types'
-import { RampDirection } from 'uniswap/src/features/fiatOnRamp/types'
 import { useGetPasskeyAuthStatus } from 'uniswap/src/features/passkey/hooks/useGetPasskeyAuthStatus'
 import { WebFORNudgeProvider } from 'uniswap/src/features/providers/webForNudgeProvider'
 import { InterfaceEventName, InterfacePageName, ModalName } from 'uniswap/src/features/telemetry/constants'
@@ -341,16 +338,14 @@ function UniversalSwapFlow({
               onSelectOption={onTabClick}
               gap={isMobileWeb ? '$spacing8' : undefined}
             />
-          ) : (
-            // <Text
-            //   variant="buttonLabel3"
-            //   color="$neutral1"
-            //   tag="h1"
-            // >
-            //   {TAB_TYPE_TO_LABEL[SwapTab.Swap](t)}
-            // </Text>
-            null
-          )}
+          ) : // <Text
+          //   variant="buttonLabel3"
+          //   color="$neutral1"
+          //   tag="h1"
+          // >
+          //   {TAB_TYPE_TO_LABEL[SwapTab.Swap](t)}
+          // </Text>
+          null}
         </Flex>
       )}
       {currentTab === SwapTab.Swap && (

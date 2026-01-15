@@ -1,11 +1,11 @@
+import useSelectChain from 'hooks/useSelectChain'
 import { useTranslation } from 'react-i18next'
 import { Button, Flex, Text } from 'ui/src'
 import { AlertTriangleFilled } from 'ui/src/components/icons/AlertTriangleFilled'
 import { Modal } from 'uniswap/src/components/modals/Modal'
-import { ModalName } from 'uniswap/src/features/telemetry/constants'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { getChainInfo } from 'uniswap/src/features/chains/chainInfo'
-import useSelectChain from 'hooks/useSelectChain'
+import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { ModalName } from 'uniswap/src/features/telemetry/constants'
 
 interface HashKeyChainOnlyModalProps {
   isOpen: boolean
@@ -13,11 +13,7 @@ interface HashKeyChainOnlyModalProps {
   currentChainId?: UniverseChainId
 }
 
-export function HashKeyChainOnlyModal({
-  isOpen,
-  onClose,
-  currentChainId,
-}: HashKeyChainOnlyModalProps): JSX.Element {
+export function HashKeyChainOnlyModal({ isOpen, onClose, currentChainId }: HashKeyChainOnlyModalProps): JSX.Element {
   const { t } = useTranslation()
   const selectChain = useSelectChain()
 
@@ -37,14 +33,7 @@ export function HashKeyChainOnlyModal({
   return (
     <Modal name={ModalName.ConfirmSwap} isModalOpen={isOpen} onClose={onClose}>
       <Flex gap="$spacing16" p="$padding24" alignItems="center">
-        <Flex
-          centered
-          width={64}
-          height={64}
-          borderRadius="$rounded32"
-          backgroundColor="$surface2"
-          mb="$spacing8"
-        >
+        <Flex centered width={64} height={64} borderRadius="$rounded32" backgroundColor="$surface2" mb="$spacing8">
           <AlertTriangleFilled color="$statusWarning" size={32} />
         </Flex>
 
@@ -83,4 +72,3 @@ export function HashKeyChainOnlyModal({
     </Modal>
   )
 }
-

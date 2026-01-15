@@ -1,4 +1,5 @@
 import { gqlToCurrency, supportedChainIdFromGQLChain, unwrapToken } from 'appGraphql/data/util'
+import { Percent } from '@uniswap/sdk-core'
 import { GraphQLApi } from '@universe/api'
 import { LiquidityPositionInfoBadges } from 'components/Liquidity/LiquidityPositionInfoBadges'
 import { LPIncentiveRewardsBadge } from 'components/Liquidity/LPIncentives/LPIncentiveRewardsBadge'
@@ -7,9 +8,7 @@ import { Trans } from 'react-i18next'
 import { PoolStat } from 'state/explore/types'
 import { Flex, Text } from 'ui/src'
 import { useEnabledChains } from 'uniswap/src/features/chains/hooks/useEnabledChains'
-import { toGraphQLChain } from 'uniswap/src/features/chains/utils'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
-import { Percent } from '@uniswap/sdk-core'
 
 export function TopPoolsCard({ pool }: { pool: PoolStat }) {
   const { defaultChainId } = useEnabledChains()
@@ -32,11 +31,11 @@ export function TopPoolsCard({ pool }: { pool: PoolStat }) {
   })
 
   const chainId = supportedChainIdFromGQLChain(pool.chain as GraphQLApi.Chain) ?? defaultChainId
-  
+
   // 尝试使用 gqlToCurrency，如果失败则直接使用 pool 中的 symbol
-  let token0 = pool.token0 ? gqlToCurrency(unwrapToken(chainId, pool.token0)) : undefined
-  let token1 = pool.token1 ? gqlToCurrency(unwrapToken(chainId, pool.token1)) : undefined
-  
+  const token0 = pool.token0 ? gqlToCurrency(unwrapToken(chainId, pool.token0)) : undefined
+  const token1 = pool.token1 ? gqlToCurrency(unwrapToken(chainId, pool.token1)) : undefined
+
   // 如果 gqlToCurrency 返回 undefined（比如数据来自 HSK subgraph），直接使用 pool 中的 symbol
   const token0Symbol = token0?.symbol || pool.token0?.symbol || '--'
   const token1Symbol = token1?.symbol || pool.token1?.symbol || '--'
@@ -58,7 +57,7 @@ export function TopPoolsCard({ pool }: { pool: PoolStat }) {
     if ('numerator' in apr && 'denominator' in apr) {
       let numValue: number
       let denValue: number
-      
+
       // 处理数组格式（protobuf 序列化后的 JSBI）
       if (Array.isArray(apr.numerator)) {
         // JSBI 序列化为数组，需要转换为数字
@@ -73,7 +72,7 @@ export function TopPoolsCard({ pool }: { pool: PoolStat }) {
       } else {
         numValue = Number(apr.numerator) || 0
       }
-      
+
       if (Array.isArray(apr.denominator)) {
         if (apr.denominator.length === 0) {
           denValue = 1
@@ -83,7 +82,7 @@ export function TopPoolsCard({ pool }: { pool: PoolStat }) {
       } else {
         denValue = Number(apr.denominator) || 1
       }
-      
+
       // 计算百分比：Percent 是 numerator/denominator，转换为百分比需要 * 100
       const percentValue = denValue > 0 ? (numValue / denValue) * 100 : 0
       return formatPercent(percentValue.toFixed(3))

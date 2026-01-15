@@ -39,7 +39,10 @@ if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
   console.log('[TradingApiClient] API Path Prefix:', tradingApiVersionPrefix)
   console.log('[TradingApiClient] Quote URL Path:', debugQuoteUrlPath)
   console.log('[TradingApiClient] Full Quote URL:', `${quoteApiBaseUrl}${debugQuoteUrlPath}`)
-  console.log('[TradingApiClient] Trading API Key:', config.tradingApiKey ? '***' : '(empty - no API key header will be sent)')
+  console.log(
+    '[TradingApiClient] Trading API Key:',
+    config.tradingApiKey ? '***' : '(empty - no API key header will be sent)',
+  )
   console.log('[TradingApiClient] Quote API Headers:', quoteApiHeaders)
 }
 
@@ -143,65 +146,30 @@ const quoteUrlPath = tradingApiVersionPrefix
   ? `${tradingApiVersionPrefix}/${TRADING_API_PATHS.quote}`
   : `/${TRADING_API_PATHS.quote}`
 
-// Map chain IDs to internal service format
-// Internal service expects "hsk" or "hsktest" instead of numeric chain IDs
-const mapChainIdToInternalFormat = (chainId: number): string | null => {
-  // HashKey Chain Mainnet: 177 -> "hsk"
-  if (chainId === 177) {
-    return 'hsk'
-  }
-  // HashKey Chain Testnet: 133 -> "hsktest"
-  if (chainId === 133) {
-    return 'hsktest'
-  }
-  // Other chain IDs are not supported by internal service
-  return null
-}
-
 // Transform request for internal quote API
-// Only converts chain IDs to internal service format, keeps all other fields unchanged
+// Keep all fields unchanged - API expects numeric chain IDs
 const transformQuoteRequest = async (request: {
   url: string
   headers?: HeadersInit
   params: QuoteRequest & { isUSDQuote?: boolean }
 }) => {
   const { params } = request
-  
-  // Convert chain IDs to internal service format
-  const tokenInChainIdInternal = mapChainIdToInternalFormat(params.tokenInChainId)
-  const tokenOutChainIdInternal = mapChainIdToInternalFormat(params.tokenOutChainId)
-  
-  // If chain IDs are not supported, log warning and use original values
-  // (This will likely result in 400 error, but allows debugging)
-  if (!tokenInChainIdInternal || !tokenOutChainIdInternal) {
-    if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
-      console.warn('[TradingApiClient] Unsupported chain IDs:', {
-        tokenInChainId: params.tokenInChainId,
-        tokenOutChainId: params.tokenOutChainId,
-        message: 'Internal service only supports HashKey Chain (177) and HashKey Testnet (133)',
-      })
-    }
-  }
-  
-  // Keep all original fields unchanged, only update chain IDs
+
+  // Ensure chain IDs are numbers (not strings)
+  // API expects numeric chain IDs for HashKey chains (177 and 133)
   const transformedParams = {
     ...params,
-    // Override chain IDs with internal format if available, otherwise keep original
-    tokenInChainId: tokenInChainIdInternal ?? params.tokenInChainId,
-    tokenOutChainId: tokenOutChainIdInternal ?? params.tokenOutChainId,
+    tokenInChainId: typeof params.tokenInChainId === 'string' ? parseInt(params.tokenInChainId, 10) : params.tokenInChainId,
+    tokenOutChainId: typeof params.tokenOutChainId === 'string' ? parseInt(params.tokenOutChainId, 10) : params.tokenOutChainId,
   }
 
   if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
-    console.log('[TradingApiClient] Transformed request:', {
-      original: {
-        tokenInChainId: params.tokenInChainId,
-        tokenOutChainId: params.tokenOutChainId,
-      },
-      transformed: {
-        tokenInChainId: transformedParams.tokenInChainId,
-        tokenOutChainId: transformedParams.tokenOutChainId,
-        hasGasStrategies: !!transformedParams.gasStrategies,
-      },
+    console.log('[TradingApiClient] Request params:', {
+      tokenInChainId: transformedParams.tokenInChainId,
+      tokenOutChainId: transformedParams.tokenOutChainId,
+      tokenInChainIdType: typeof transformedParams.tokenInChainId,
+      tokenOutChainIdType: typeof transformedParams.tokenOutChainId,
+      hasGasStrategies: !!transformedParams.gasStrategies,
     })
   }
 

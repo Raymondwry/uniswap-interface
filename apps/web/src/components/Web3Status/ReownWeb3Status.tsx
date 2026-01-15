@@ -41,22 +41,9 @@ export default function ReownWeb3Status(): JSX.Element {
   const [accountModalOpen, setAccountModalOpen] = useState(false)
   const [copied, copyToClipboard] = useCopyClipboard()
 
-  // Debug logging
-  if (process.env.NODE_ENV === 'development') {
-    console.log('ReownWeb3Status:', { 
-      address, 
-      isConnected, 
-      isConnecting, 
-      walletInfo, 
-      reownDisconnect,
-      wagmiDisconnect 
-    })
-  }
-
   // Prevent multiple connection attempts
   const handleConnect = () => {
     if (isConnecting) {
-      console.warn('Connection already in progress, ignoring click')
       return
     }
     open({ view: 'Connect' })
@@ -64,7 +51,6 @@ export default function ReownWeb3Status(): JSX.Element {
 
   const handleAccountClick = () => {
     if (isConnecting) {
-      console.warn('Connection in progress, ignoring account click')
       return
     }
     if (isConnected) {
@@ -88,17 +74,14 @@ export default function ReownWeb3Status(): JSX.Element {
       if (wagmiDisconnect) {
         wagmiDisconnect()
       }
-      
-      console.log('Disconnect called successfully')
     } catch (error) {
-      console.error('Failed to disconnect:', error)
       // Still try wagmi disconnect as fallback
       try {
         if (wagmiDisconnect) {
           wagmiDisconnect()
         }
       } catch (fallbackError) {
-        console.error('Fallback disconnect also failed:', fallbackError)
+        // Fallback disconnect failed
       }
     }
     // Always close the modal (matching hsk-staking-launchpad behavior)

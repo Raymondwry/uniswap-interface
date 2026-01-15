@@ -12,7 +12,7 @@ export const PageWrapper = styled(Flex, {
   maxWidth: PAGE_WRAPPER_MAX_WIDTH,
   borderWidth: 1,
   borderColor: '$surface3',
-  marginTop:60,
+  marginTop: 60,
   $lg: {
     pt: '$spacing48',
   },

@@ -2368,6 +2368,7 @@
   "tokens.selector.section.favorite": "Favorites",
   "tokens.selector.section.otherNetworksSearchResults": "Tokens found on other networks",
   "tokens.selector.section.otherSearchResults": "Other tokens on {{network}}",
+  "tokens.selector.section.poolTokens": "Pool tokens",
   "tokens.selector.section.recent": "Recent searches",
   "tokens.selector.section.search": "Search results",
   "tokens.selector.section.trending": "Tokens by 24H volume",
