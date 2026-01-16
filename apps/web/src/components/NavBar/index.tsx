@@ -74,10 +74,11 @@ export default function Navbar() {
         <Right>
           <UniswapWrappedEntry />
           {/* {!isSearchBarVisible && <SearchBar />} */}
-          {!isEmbeddedWalletEnabled && isLandingPage && !isSmallScreen && <NewUserCTAButton />}
+          {/* Get App button is hidden - only English is supported */}
+          {/* {!isEmbeddedWalletEnabled && isLandingPage && !isSmallScreen && <NewUserCTAButton />} */}
           {/* {!isConnected && <PreferenceMenu />} */}
           {isTestnetModeEnabled && <TestnetModeTooltip />}
-          {isEmbeddedWalletEnabled && !isConnected && <NewUserCTAButton />}
+          {/* {isEmbeddedWalletEnabled && !isConnected && <NewUserCTAButton />} */}
           <Web3Status />
         </Right>
       </UnpositionedFlex>
