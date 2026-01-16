@@ -191,6 +191,49 @@ export function getSimulationError({
   return null
 }
 
+/**
+ * Calculate gasFee from quote response
+ * If gasFee is directly available, use it. Otherwise, calculate from gasPriceWei * gasUseEstimate
+ */
+function getGasFeeFromQuote(
+  swapQuote: TradingApi.ClassicQuote | TradingApi.BridgeQuote | undefined,
+  gasStrategy: GasStrategy,
+): { value: string | undefined; displayValue: string | undefined } {
+  if (!swapQuote) {
+    return { value: undefined, displayValue: undefined }
+  }
+
+  // Try to use gasFee directly if available
+  if ('gasFee' in swapQuote && swapQuote.gasFee) {
+    return {
+      value: swapQuote.gasFee,
+      displayValue: convertGasFeeToDisplayValue(swapQuote.gasFee, gasStrategy),
+    }
+  }
+
+  // Calculate from gasPriceWei * gasUseEstimate if available
+  if ('gasPriceWei' in swapQuote && 'gasUseEstimate' in swapQuote) {
+    const gasPriceWei = swapQuote.gasPriceWei
+    const gasUseEstimate = swapQuote.gasUseEstimate
+
+    if (gasPriceWei && gasUseEstimate) {
+      try {
+        // Calculate: gasFee = gasPriceWei * gasUseEstimate
+        const gasFeeValue = (BigInt(gasPriceWei) * BigInt(gasUseEstimate)).toString()
+        return {
+          value: gasFeeValue,
+          displayValue: convertGasFeeToDisplayValue(gasFeeValue, gasStrategy),
+        }
+      } catch (error) {
+        // If calculation fails, return undefined
+        return { value: undefined, displayValue: undefined }
+      }
+    }
+  }
+
+  return { value: undefined, displayValue: undefined }
+}
+
 export function createProcessSwapResponse({ gasStrategy }: { gasStrategy: GasStrategy }) {
   return function processSwapResponse({
     response,
@@ -212,10 +255,8 @@ export function createProcessSwapResponse({ gasStrategy }: { gasStrategy: GasStr
     permitsDontNeedSignature?: boolean
   }): TransactionRequestInfo {
     // We use the gasFee estimate from quote, as its more accurate
-    const swapGasFee = {
-      value: swapQuote?.gasFee,
-      displayValue: convertGasFeeToDisplayValue(swapQuote?.gasFee, gasStrategy),
-    }
+    // Calculate gasFee from quote response (either directly from gasFee or from gasPriceWei * gasUseEstimate)
+    const swapGasFee = getGasFeeFromQuote(swapQuote, gasStrategy)
 
     // This is a case where simulation fails on backend, meaning txn is expected to fail
     const simulationError = getSimulationError({ swapQuote, isRevokeNeeded })

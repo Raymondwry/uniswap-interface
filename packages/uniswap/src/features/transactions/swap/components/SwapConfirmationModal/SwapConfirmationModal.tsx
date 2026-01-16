@@ -8,12 +8,23 @@ import { CurrencyLogo } from 'uniswap/src/components/CurrencyLogo/CurrencyLogo'
 import { Modal } from 'uniswap/src/components/modals/Modal'
 import type { CurrencyInfo } from 'uniswap/src/features/dataApi/types'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
+import {
+  useTransactionSettingsAutoSlippageToleranceStore,
+  useTransactionSettingsStore,
+} from 'uniswap/src/features/transactions/components/settings/stores/transactionSettingsStore/useTransactionSettingsStore'
 import { ModalName } from 'uniswap/src/features/telemetry/constants'
 import { useUSDCValue } from 'uniswap/src/features/transactions/hooks/useUSDCPrice'
 import { useSwapFormScreenStore } from 'uniswap/src/features/transactions/swap/form/stores/swapFormScreenStore/useSwapFormScreenStore'
 import { usePriceUXEnabled } from 'uniswap/src/features/transactions/swap/hooks/usePriceUXEnabled'
 import type { DerivedSwapInfo } from 'uniswap/src/features/transactions/swap/types/derivedSwapInfo'
 import { getTradeAmounts } from 'uniswap/src/features/transactions/swap/utils/getTradeAmounts'
+import { calculateRateLine, getRateToDisplay } from 'uniswap/src/features/transactions/swap/utils/trade'
+import { formatPriceImpact } from 'uniswap/src/features/transactions/swap/utils/formatPriceImpact'
+import { getPriceImpact } from 'uniswap/src/features/transactions/swap/utils/getPriceImpact'
+import { getSwapFeeUsdFromDerivedSwapInfo } from 'uniswap/src/features/transactions/swap/utils/getSwapFeeUsd'
+import { useSwapTxStore } from 'uniswap/src/features/transactions/swap/stores/swapTxStore/useSwapTxStore'
+import { useGasFeeFormattedDisplayAmounts } from 'uniswap/src/features/gas/hooks'
+import { useRoutingProvider } from 'uniswap/src/utils/routingDiagram/routingRegistry'
 import { CurrencyField } from 'uniswap/src/types/currency'
 import { NumberType } from 'utilities/src/format/types'
 import { isWebPlatform } from 'utilities/src/platform'
@@ -151,6 +162,88 @@ export function SwapConfirmationModal({
   // Use buy currency from form if available, otherwise fallback to derivedSwapInfo
   const buyCurrencyInfo =
     formCurrencies[CurrencyField.OUTPUT] ?? derivedSwapInfo.currencies[CurrencyField.OUTPUT] ?? undefined
+
+  // Calculate rate from trade
+  const trade = derivedSwapInfo.trade.trade
+  const formatter = useLocalizationContext()
+  const { formatPercent } = formatter
+  const rateText = useMemo(() => {
+    if (!trade) {
+      return null
+    }
+    const rate = getRateToDisplay({ formatter, trade, showInverseRate: false })
+    const rateAmountUSD = calculateRateLine({
+      usdAmountOut,
+      outputCurrencyAmount,
+      trade,
+      showInverseRate: false,
+      formatter,
+    })
+    return rateAmountUSD ? `${rate} (${rateAmountUSD})` : rate
+  }, [trade, formatter, usdAmountOut, outputCurrencyAmount])
+
+  // Get slippage tolerance from settings - prioritize settings over trade to ensure immediate sync
+  const customSlippageTolerance = useTransactionSettingsStore((s) => s.customSlippageTolerance)
+  const autoSlippageTolerance = useTransactionSettingsAutoSlippageToleranceStore((s) => s.autoSlippageTolerance)
+  // Prioritize customSlippageTolerance or autoSlippageTolerance from settings (these update immediately)
+  // Fallback to trade.slippageTolerance only if settings are not available
+  const slippageTolerance = customSlippageTolerance ?? autoSlippageTolerance ?? trade?.slippageTolerance ?? 0
+  const slippageText = useMemo(() => {
+    // If customSlippageTolerance is set, don't show "Auto" prefix (user has customized it)
+    // Otherwise, show "Auto" prefix for auto-calculated slippage
+    if (customSlippageTolerance) {
+      return formatPercent(slippageTolerance)
+    }
+    return `Auto ${formatPercent(slippageTolerance)}`
+  }, [customSlippageTolerance, slippageTolerance, formatPercent])
+
+  // Calculate price impact from trade
+  const priceImpact = getPriceImpact(derivedSwapInfo)
+  const priceImpactText = useMemo(() => {
+    if (!priceImpact) {
+      return 'N/A'
+    }
+    return formatPriceImpact(priceImpact, formatter.formatPercent)
+  }, [priceImpact, formatter.formatPercent])
+
+  // Get gas fee from swapTxStore
+  const { gasFee } = useSwapTxStore((s) => ({
+    gasFee: s.gasFee,
+  }))
+  const { gasFeeFormatted } = useGasFeeFormattedDisplayAmounts({
+    gasFee,
+    chainId: derivedSwapInfo.chainId,
+    placeholder: undefined,
+  })
+
+  // Get swap fee info
+  const swapFeeUsd = getSwapFeeUsdFromDerivedSwapInfo(derivedSwapInfo)
+  const swapFee = trade?.swapFee
+  const feeText = useMemo(() => {
+    if (!swapFee || swapFee.percent.equalTo(0)) {
+      return 'Free'
+    }
+    // If USD value is available, show it, otherwise show percentage
+    if (swapFeeUsd !== undefined && !isNaN(swapFeeUsd)) {
+      return convertFiatAmountFormatted(swapFeeUsd, NumberType.FiatGasPrice) ?? formatPercent(swapFee.percent.toFixed())
+    }
+    return formatPercent(swapFee.percent.toFixed())
+  }, [swapFee, swapFeeUsd, convertFiatAmountFormatted, formatPercent])
+
+  // Get routing provider name
+  const routingProvider = useRoutingProvider({ routing: trade?.routing })
+  const routingText = useMemo(() => {
+    if (!trade?.routing) {
+      return 'N/A'
+    }
+    // For CLASSIC routing, use provider name (e.g., "Uniswap API")
+    // For other routing types, you might want to customize the display
+    if (routingProvider?.name) {
+      return routingProvider.name
+    }
+    // Fallback: return routing type as string
+    return trade.routing
+  }, [trade?.routing, routingProvider])
 
   // TokenRow component
   interface TokenRowProps {
@@ -377,7 +470,7 @@ export function SwapConfirmationModal({
                   color: '#AD81F1',
                 }}
               >
-                Free
+                {feeText}
               </Text>
             </Flex>
 
@@ -408,7 +501,7 @@ export function SwapConfirmationModal({
                     color: '#FFFFFF',
                   }}
                 >
-                  $0.02
+                  {gasFeeFormatted ?? 'N/A'}
                 </Text>
               </Flex>
             </Flex>
@@ -440,7 +533,7 @@ export function SwapConfirmationModal({
                       color: '#FFFFFF',
                     }}
                   >
-                    1 ETH = 3218.57 USDC ($3,218.57)
+                    {rateText ?? 'N/A'}
                   </Text>
                 </Flex>
 
@@ -470,7 +563,7 @@ export function SwapConfirmationModal({
                       color: '#FFFFFF',
                     }}
                   >
-                    Auto 0.67%
+                    {slippageText}
                   </Text>
                 </Flex>
 
@@ -500,7 +593,7 @@ export function SwapConfirmationModal({
                       color: '#FFFFFF',
                     }}
                   >
-                    HSK API
+                    {routingText}
                   </Text>
                 </Flex>
 
@@ -530,7 +623,7 @@ export function SwapConfirmationModal({
                       color: '#FFFFFF',
                     }}
                   >
-                    -0.05%
+                    {priceImpactText}
                   </Text>
                 </Flex>
               </>
