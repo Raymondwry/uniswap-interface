@@ -124,10 +124,19 @@ export function* handleOnChainStep<T extends OnChainTransactionStep>(params: Han
   addTransactionBreadcrumb({ step, data: { ...info } })
 
   // Avoid sending prompting a transaction if the user already submitted an equivalent tx, e.g. by closing and reopening a transaction flow
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[Swap] handleOnChainStep: Checking for duplicative transaction')
+  }
   const duplicativeTx = yield* findDuplicativeTx({ info, address, chainId, allowDuplicativeTx })
 
   const interfaceDuplicativeTx = duplicativeTx ? getInterfaceTransaction(duplicativeTx) : undefined
   if (interfaceDuplicativeTx && interfaceDuplicativeTx.hash) {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[Swap] handleOnChainStep: Found duplicative transaction:', {
+        hash: interfaceDuplicativeTx.hash,
+        status: interfaceDuplicativeTx.status,
+      })
+    }
     if (interfaceDuplicativeTx.status === TransactionStatus.Success) {
       addTransactionBreadcrumb({
         step,
@@ -146,10 +155,22 @@ export function* handleOnChainStep<T extends OnChainTransactionStep>(params: Han
     }
   }
 
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[Swap] handleOnChainStep: No duplicative transaction found, proceeding with new transaction')
+  }
+
   // Add a watcher to check if the transaction flow during user input
   const { throwIfInterrupted } = yield* watchForInterruption(ignoreInterrupt)
 
   // Trigger UI prompting user to accept
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[Swap] handleOnChainStep: Triggering UI to prompt user to accept:', {
+      stepType: step.type,
+      chainId,
+      hasTxRequest: !!step.txRequest,
+      to: step.txRequest?.to,
+    })
+  }
   setCurrentStep({ step, accepted: false })
 
   let transaction: InterfaceTransactionDetails
@@ -188,6 +209,13 @@ export function* handleOnChainStep<T extends OnChainTransactionStep>(params: Han
   // If should wait for confirmation, we block until the transaction is confirmed
   // Otherwise, we submit the transaction and return the hash immediately and spawn a detection task to check for modifications
   if (blockedAsyncSubmissionChainIds.includes(chainId) || shouldWaitForConfirmation) {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[Swap] handleOnChainStep: Calling submitTransaction (sync):', {
+        chainId,
+        shouldWaitForConfirmation,
+        isBlockedAsync: blockedAsyncSubmissionChainIds.includes(chainId),
+      })
+    }
     const { hash, data, nonce } = yield* call(submitTransaction, params)
     transaction = createTransaction(hash)
 
@@ -198,6 +226,12 @@ export function* handleOnChainStep<T extends OnChainTransactionStep>(params: Han
       yield* call(onModification, { hash, data, nonce })
     }
   } else {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[Swap] handleOnChainStep: Calling submitTransactionAsync:', {
+        chainId,
+        shouldWaitForConfirmation,
+      })
+    }
     const hash = yield* call(submitTransactionAsync, params)
     transaction = createTransaction(hash)
 
@@ -270,7 +304,21 @@ function* submitTransaction(params: HandleOnChainStepParams): SagaGenerator<Vita
   const signer = yield* call(getSigner, address)
 
   try {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[Swap] submitTransaction: Calling signer.sendTransaction:', {
+        to: step.txRequest.to,
+        chainId: step.txRequest.chainId,
+        hasData: !!step.txRequest.data,
+        signerType: signer.constructor.name,
+      })
+    }
     const response = yield* call([signer, 'sendTransaction'], step.txRequest)
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[Swap] submitTransaction: Received response:', {
+        hash: response.hash,
+        hasResponse: !!response,
+      })
+    }
     return transformTransactionResponse(response)
   } catch (error) {
     if (error && typeof error === 'object' && 'transactionHash' in error && isValidHexString(error.transactionHash)) {
@@ -288,9 +336,25 @@ function* submitTransactionAsync(params: HandleOnChainStepParams): SagaGenerator
   try {
     const hexlifiedTransactionRequest = hexlifyTransaction(step.txRequest)
 
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[Swap] submitTransactionAsync: Calling provider.send(eth_sendTransaction):', {
+        to: step.txRequest.to,
+        chainId: step.txRequest.chainId,
+        hasData: !!step.txRequest.data,
+        providerType: signer.provider?.constructor?.name,
+      })
+    }
+
     const response = yield* call([signer.provider, 'send'], 'eth_sendTransaction', [
       { from: address, ...hexlifiedTransactionRequest },
     ])
+
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[Swap] submitTransactionAsync: Received response:', {
+        hash: response,
+        hasResponse: !!response,
+      })
+    }
 
     if (!isValidHexString(response)) {
       throw new TransactionStepFailedError({ message: `Transaction failed, not a valid hex string: ${response}`, step })

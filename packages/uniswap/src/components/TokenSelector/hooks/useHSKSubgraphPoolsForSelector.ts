@@ -47,15 +47,6 @@ interface PoolForSelector {
 }
 
 async function querySubgraph(query: string, variables: Record<string, unknown> = {}) {
-  // Debug log
-  if (typeof window !== 'undefined') {
-    console.log('[useHSKSubgraphPoolsForSelector] Querying Subgraph:', {
-      url: SUBGRAPH_URL,
-      isLocalhost: window.location.hostname === 'localhost',
-      variables,
-    })
-  }
-
   try {
     const response = await fetch(SUBGRAPH_URL, {
       method: 'POST',
@@ -70,34 +61,17 @@ async function querySubgraph(query: string, variables: Record<string, unknown> =
 
     if (!response.ok) {
       const errorText = await response.text()
-      console.error('[useHSKSubgraphPoolsForSelector] HTTP error:', {
-        status: response.status,
-        statusText: response.statusText,
-        body: errorText,
-      })
       throw new Error(`HTTP error! status: ${response.status}, body: ${errorText}`)
     }
 
     const data = await response.json()
 
     if (data.errors) {
-      console.error('[useHSKSubgraphPoolsForSelector] GraphQL errors:', data.errors)
       throw new Error(`GraphQL errors: ${JSON.stringify(data.errors, null, 2)}`)
-    }
-
-    // Debug log
-    if (typeof window !== 'undefined') {
-      console.log('[useHSKSubgraphPoolsForSelector] Query success:', {
-        poolsCount: data.data?.pools?.length ?? 0,
-      })
     }
 
     return data.data as SubgraphResponse
   } catch (error) {
-    console.error('[useHSKSubgraphPoolsForSelector] Query failed:', {
-      url: SUBGRAPH_URL,
-      error: error instanceof Error ? error.message : String(error),
-    })
     throw error
   }
 }
@@ -156,19 +130,6 @@ export function useHSKSubgraphPoolsForSelector(first: number = 1000) {
     queryFn: async () => {
       const data = await querySubgraph(TOP_POOLS_QUERY, { first })
       const pools = data.pools.map(convertSubgraphPoolToPoolForSelector)
-      
-      // Debug log
-      if (typeof window !== 'undefined') {
-        console.log('[useHSKSubgraphPoolsForSelector] Converted pools:', {
-          originalCount: data.pools.length,
-          convertedCount: pools.length,
-          samplePool: pools[0] ? {
-            token0: pools[0].token0.symbol,
-            token1: pools[0].token1.symbol,
-          } : null,
-        })
-      }
-      
       return pools
     },
     staleTime: 60 * 1000, // 1 minute

@@ -83,7 +83,8 @@ export function useSwapHandlers(): SwapHandlers {
         }
       } else {
         // Handle regular swap transactions
-        swapCallback({
+        try {
+          swapCallback({
           account,
           swapTxContext,
           currencyInAmountUSD,
@@ -100,6 +101,16 @@ export function useSwapHandlers(): SwapHandlers {
           isFiatInputMode,
           includesDelegation: swapTxContext.includesDelegation,
         })
+        } catch (error) {
+          if (process.env.NODE_ENV === 'development') {
+            console.error('[Swap] Error: swapCallback threw error', {
+              error: error instanceof Error ? error.message : String(error),
+              errorDetails: error,
+              stack: error instanceof Error ? error.stack : undefined,
+            })
+          }
+          onFailure(error instanceof Error ? error : new Error(String(error)))
+        }
       }
     },
     [swapCallback, wrapCallback],

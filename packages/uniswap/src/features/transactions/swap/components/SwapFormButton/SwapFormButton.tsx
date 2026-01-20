@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { TradingApi } from '@universe/api'
+import { useState, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Button, Flex, styled, useIsShortMobileDevice } from 'ui/src'
 import { useConnectionStatus } from 'uniswap/src/features/accounts/store/hooks'
 import { useIsWebFORNudgeEnabled } from 'uniswap/src/features/providers/webForNudgeProvider'
-import { useTransactionModalContext } from 'uniswap/src/features/transactions/components/TransactionModal/TransactionModalContext'
+import { TransactionScreen, useTransactionModalContext } from 'uniswap/src/features/transactions/components/TransactionModal/TransactionModalContext'
 import { SwapConfirmationModal } from 'uniswap/src/features/transactions/swap/components/SwapConfirmationModal/SwapConfirmationModal'
 import { useIsSwapButtonDisabled } from 'uniswap/src/features/transactions/swap/components/SwapFormButton/hooks/useIsSwapButtonDisabled'
 import { useIsMissingPlatformWallet } from 'uniswap/src/features/transactions/swap/components/SwapFormButton/hooks/useIsMissingPlatformWallet'
@@ -12,10 +13,23 @@ import { useOnReviewPress } from 'uniswap/src/features/transactions/swap/compone
 import { useSwapFormButtonColors } from 'uniswap/src/features/transactions/swap/components/SwapFormButton/hooks/useSwapFormButtonColors'
 import { useSwapFormButtonText } from 'uniswap/src/features/transactions/swap/components/SwapFormButton/hooks/useSwapFormButtonText'
 import { SwapFormButtonTrace } from 'uniswap/src/features/transactions/swap/components/SwapFormButton/SwapFormButtonTrace'
-import { useSwapFormStoreDerivedSwapInfo } from 'uniswap/src/features/transactions/swap/stores/swapFormStore/useSwapFormStore'
-import { TestID } from 'uniswap/src/test/fixtures/testIDs'
-import { isWebPlatform } from 'utilities/src/platform'
+import { useSwapFormStoreDerivedSwapInfo, useSwapFormStore } from 'uniswap/src/features/transactions/swap/stores/swapFormStore/useSwapFormStore'
+import { usePrepareSwap } from 'uniswap/src/features/transactions/swap/services/hooks/usePrepareSwap'
+import { useWarningService } from 'uniswap/src/features/transactions/swap/services/hooks/useWarningService'
+import { useSwapDependenciesStore } from 'uniswap/src/features/transactions/swap/stores/swapDependenciesStore/useSwapDependenciesStore'
+import {
+  ensureFreshSwapTxData,
+  useSwapParams,
+  useSwapTxAndGasInfoService,
+} from 'uniswap/src/features/transactions/swap/review/services/swapTxAndGasInfoService/hooks'
+import { useIsUnichainFlashblocksEnabled } from 'uniswap/src/features/transactions/swap/hooks/useIsUnichainFlashblocksEnabled'
+import { shouldShowFlashblocksUI } from 'uniswap/src/features/transactions/swap/components/UnichainInstantBalanceModal/utils'
+import { isValidSwapTxContext } from 'uniswap/src/features/transactions/swap/types/swapTxAndGasInfo'
+import { tryCatch } from 'utilities/src/errors'
+import { logger } from 'utilities/src/logger/logger'
+import { isWebApp } from 'utilities/src/platform'
 import { useEvent } from 'utilities/src/react/hooks'
+import { TestID } from 'uniswap/src/test/fixtures/testIDs'
 
 export const SWAP_BUTTON_TEXT_VARIANT = 'buttonLabel1'
 
@@ -67,7 +81,7 @@ export function SwapFormButton({ tokenColor }: { tokenColor?: string }): JSX.Ele
   const { handleOnReviewPress } = useOnReviewPress()
   const disabled = useIsSwapButtonDisabled()
   const buttonText = useSwapFormButtonText()
-  const { swapRedirectCallback } = useTransactionModalContext()
+  const { swapRedirectCallback, setScreen } = useTransactionModalContext()
   const {
     backgroundColor: buttonBackgroundColor,
     variant: buttonVariant,
@@ -103,17 +117,6 @@ export function SwapFormButton({ tokenColor }: { tokenColor?: string }): JSX.Ele
     // Check both the flag and the actual button text to be safe
     const shouldShowModal = (isWebFORNudgeEnabled || buttonText === swapTokensText) && !swapRedirectCallback
 
-    // Debug: log the values to help troubleshoot
-    if (process.env.NODE_ENV === 'development') {
-      console.log('SwapFormButton press:', {
-        isWebFORNudgeEnabled,
-        buttonText,
-        swapTokensText,
-        shouldShowModal,
-        swapRedirectCallback,
-      })
-    }
-
     if (shouldShowModal) {
       setIsSwapConfirmationModalOpen(true)
     } else {
@@ -121,9 +124,222 @@ export function SwapFormButton({ tokenColor }: { tokenColor?: string }): JSX.Ele
     }
   })
 
+  // Get dependencies for swap execution
+  const getExecuteSwapService = useSwapDependenciesStore((s) => s.getExecuteSwapService)
+  const swapTxAndGasInfoService = useSwapTxAndGasInfoService()
+  const swapParams = useSwapParams()
+  const updateSwapForm = useSwapFormStore((s) => s.updateSwapForm)
+  const isFlashblocksEnabled = useIsUnichainFlashblocksEnabled(derivedSwapInfo.chainId)
+  const shouldShowConfirmedState =
+    (isFlashblocksEnabled && shouldShowFlashblocksUI(derivedSwapInfo.trade.trade?.routing)) ||
+    // show the confirmed state for bridges
+    derivedSwapInfo.trade.trade?.routing === TradingApi.Routing.BRIDGE
+
+  // Create callbacks for swap execution
+  const onSuccess = useCallback(() => {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[Swap Result] Swap succeeded!', {
+        chainId: derivedSwapInfo.chainId,
+        inputCurrency: derivedSwapInfo.currencies.input?.currency.symbol,
+        outputCurrency: derivedSwapInfo.currencies.output?.currency.symbol,
+      })
+    }
+    // For Unichain networks, trigger confirmation and branch to stall+fetch logic (ie handle in component)
+    if (isFlashblocksEnabled && shouldShowConfirmedState) {
+      updateSwapForm({
+        isConfirmed: true,
+        isSubmitting: false,
+        showPendingUI: false,
+      })
+      return
+    }
+
+    // On interface, the swap component stays mounted; after swap we reset the form to avoid showing the previous values.
+    if (isWebApp) {
+      updateSwapForm({
+        exactAmountFiat: undefined,
+        exactAmountToken: '',
+        showPendingUI: false,
+        isConfirmed: false,
+        instantReceiptFetchTime: undefined,
+        instantOutputAmountRaw: undefined,
+        txHash: undefined,
+        txHashReceivedTime: undefined,
+      })
+      setScreen(TransactionScreen.Form)
+    }
+  }, [setScreen, updateSwapForm, isFlashblocksEnabled, shouldShowConfirmedState, derivedSwapInfo])
+
+  const onFailure = useCallback(
+    (error?: Error) => {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[Swap Result] Swap failed:', {
+          error: error?.message || 'Unknown error',
+        })
+      }
+      updateSwapForm({ isSubmitting: false, isConfirmed: false, showPendingUI: false })
+    },
+    [updateSwapForm],
+  )
+
+  const onPending = useCallback(() => {
+    // Skip pending UI only for Unichain networks with flashblocks-compatible routes
+    if (isFlashblocksEnabled && shouldShowConfirmedState) {
+      return
+    }
+    updateSwapForm({ showPendingUI: true })
+  }, [updateSwapForm, isFlashblocksEnabled, shouldShowConfirmedState])
+
+  // Direct swap execution function
+  const executeSwapDirectly = useEvent(async () => {
+    try {
+      if (!swapParams.trade) {
+        const error = new Error('No `trade` found when calling `executeSwap`')
+        if (process.env.NODE_ENV === 'development') {
+          console.error('[Swap] Error: No trade found', {
+            swapParams: {
+              hasTrade: !!swapParams.trade,
+              hasDerivedSwapInfo: !!swapParams.derivedSwapInfo,
+              chainId: swapParams.derivedSwapInfo?.chainId,
+            },
+          })
+        }
+        onFailure(error)
+        return
+      }
+
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[Swap] Starting swap execution...', {
+          trade: swapParams.trade,
+          chainId: swapParams.derivedSwapInfo.chainId,
+        })
+      }
+
+      // Ensure we have fresh transaction data before executing the swap
+      const { data: freshSwapTxData, error } = await tryCatch(
+        ensureFreshSwapTxData(
+          {
+            trade: swapParams.trade,
+            approvalTxInfo: swapParams.approvalTxInfo,
+            derivedSwapInfo: swapParams.derivedSwapInfo,
+          },
+          swapTxAndGasInfoService,
+        ),
+      )
+
+      if (error) {
+        const wrappedError = new Error('Failed to ensure fresh transaction data when calling `executeSwap`', {
+          cause: error,
+        })
+
+        if (process.env.NODE_ENV === 'development') {
+          console.error('[Swap] Error: Failed to ensure fresh transaction data', {
+            error: error.message,
+            errorDetails: error,
+            cause: error instanceof Error ? error.cause : undefined,
+          })
+        }
+
+        logger.error(wrappedError, {
+          tags: { file: 'SwapFormButton', function: 'executeSwapDirectly' },
+        })
+
+        onFailure(wrappedError)
+        return
+      }
+
+      if (!freshSwapTxData) {
+        const error = new Error('Empty swap transaction data returned')
+        if (process.env.NODE_ENV === 'development') {
+          console.error('[Swap] Error: Empty swap transaction data', {
+            swapParams: {
+              trade: swapParams.trade,
+              chainId: swapParams.derivedSwapInfo.chainId,
+            },
+          })
+        }
+        onFailure(error)
+        return
+      }
+
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[Swap] Transaction data prepared, executing swap...', {
+          txRequests: 'txRequests' in freshSwapTxData ? freshSwapTxData.txRequests : undefined,
+          gasEstimate: freshSwapTxData.gasFeeEstimation,
+          gasFee: freshSwapTxData.gasFee,
+          routing: freshSwapTxData.routing,
+          hasTrade: !!freshSwapTxData.trade,
+          isValidSwapTxContext: isValidSwapTxContext(freshSwapTxData),
+          swapTxContextKeys: Object.keys(freshSwapTxData),
+        })
+      }
+
+      if (!isValidSwapTxContext(freshSwapTxData)) {
+        const error = new Error('Invalid swap transaction context')
+        if (process.env.NODE_ENV === 'development') {
+          console.error('[Swap] Error: Invalid swap transaction context', {
+            swapTxContext: {
+              routing: freshSwapTxData.routing,
+              hasTrade: !!freshSwapTxData.trade,
+              hasTxRequests: 'txRequests' in freshSwapTxData ? !!freshSwapTxData.txRequests : false,
+              gasFee: freshSwapTxData.gasFee,
+              gasFeeEstimation: freshSwapTxData.gasFeeEstimation,
+              keys: Object.keys(freshSwapTxData),
+            },
+          })
+        }
+        onFailure(error)
+        return
+      }
+
+      const executeSwapService = getExecuteSwapService({
+        onSuccess,
+        onFailure,
+        onPending,
+        setCurrentStep: () => {},
+        setSteps: () => {},
+        getSwapTxContext: () => freshSwapTxData,
+      })
+
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[Swap] Calling executeSwapService.executeSwap()...')
+      }
+
+      executeSwapService.executeSwap()
+    } catch (error) {
+      const swapError = error instanceof Error ? error : new Error(String(error))
+      if (process.env.NODE_ENV === 'development') {
+        console.error('[Swap] Error: Unexpected error in executeSwapDirectly', {
+          error: swapError.message,
+          errorDetails: swapError,
+          stack: swapError.stack,
+        })
+      }
+      logger.error(swapError, {
+        tags: { file: 'SwapFormButton', function: 'executeSwapDirectly' },
+      })
+      onFailure(swapError)
+    }
+  })
+
+  // Create a prepareSwap that executes swap directly instead of showing review screen
+  const warningService = useWarningService()
+  const prepareSwapDirectly = usePrepareSwap({
+    warningService,
+    onExecuteSwapDirectly: () => {
+      // Execute swap directly without showing review screen
+      executeSwapDirectly()
+    },
+  })
+
   const handleConfirmSwap = useEvent(() => {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('swap tokens now')
+    }
     setIsSwapConfirmationModalOpen(false)
-    handleOnReviewPress()
+    // Use prepareSwapDirectly which will execute swap directly if no warnings
+    // If there are warnings, they will be shown, otherwise swap will execute
+    prepareSwapDirectly()
   })
 
   const handleCloseModal = useEvent(() => {

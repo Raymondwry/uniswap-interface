@@ -203,7 +203,7 @@
     "@uniswap/sdk-core": "7.9.0",
     "@uniswap/token-lists": "1.0.0-beta.33",
     "@uniswap/uniswapx-sdk": "3.0.0-beta.7",
-    "@uniswap/universal-router-sdk": "4.19.5",
+    "@hkdex-tmp/universal_router_sdk": "1.0.3",
     "@uniswap/v2-core": "1.0.1",
     "@uniswap/v2-sdk": "4.15.2",
     "@uniswap/v3-core": "1.0.1",

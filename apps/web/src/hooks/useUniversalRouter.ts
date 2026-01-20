@@ -7,7 +7,7 @@ import {
   SwapRouter,
   UNIVERSAL_ROUTER_ADDRESS,
   UniversalRouterVersion,
-} from '@uniswap/universal-router-sdk'
+} from '@hkdex-tmp/universal_router_sdk'
 import { FeeOptions, toHex } from '@uniswap/v3-sdk'
 import { useAccount } from 'hooks/useAccount'
 import { useEthersWeb3Provider } from 'hooks/useEthersProvider'
@@ -103,6 +103,28 @@ export function useUniversalRouterSwapCallback({
 
       const deadline = await getDeadline()
 
+      // Check if SwapRouter and UNIVERSAL_ROUTER_ADDRESS are available
+      if (!SwapRouter || typeof SwapRouter.swapCallParameters !== 'function') {
+        throw new Error('SwapRouter.swapCallParameters is not available in @hkdex-tmp/universal_router_sdk')
+      }
+
+      if (!UNIVERSAL_ROUTER_ADDRESS || typeof UNIVERSAL_ROUTER_ADDRESS !== 'function') {
+        throw new Error('UNIVERSAL_ROUTER_ADDRESS is not available in @hkdex-tmp/universal_router_sdk')
+      }
+
+      let routerAddress: string
+      try {
+        routerAddress = UNIVERSAL_ROUTER_ADDRESS(UniversalRouterVersion.V1_2, chainId)
+      } catch (error) {
+        if (process.env.NODE_ENV === 'development') {
+          console.error('[Swap] Error: Failed to get router address', {
+            error: error instanceof Error ? error.message : String(error),
+            chainId,
+          })
+        }
+        throw new Error(`Failed to get router address for chain ${chainId}: ${error instanceof Error ? error.message : String(error)}`)
+      }
+
       const { calldata: data, value } = SwapRouter.swapCallParameters(trade, {
         slippageTolerance: options.slippageTolerance,
         deadlineOrPreviousBlockhash: deadline?.toString(),
@@ -112,7 +134,7 @@ export function useUniversalRouterSwapCallback({
       })
       const tx = {
         from: account.address,
-        to: UNIVERSAL_ROUTER_ADDRESS(UniversalRouterVersion.V1_2, chainId),
+        to: routerAddress,
         data,
         // TODO(https://github.com/Uniswap/universal-router-sdk/issues/113): universal-router-sdk returns a non-hexlified value.
         ...(value && !isZero(value) ? { value: toHex(value) } : {}),

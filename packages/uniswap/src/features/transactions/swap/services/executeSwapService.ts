@@ -55,17 +55,21 @@ export function createExecuteSwapService(ctx: {
         !isSignerMnemonicAccountDetails(account) ||
         !isValidSwapTxContext(swapTxContext)
       ) {
-        ctx.onFailure(
-          new Error(
-            !account
-              ? 'No account available'
-              : !swapTxContext
-                ? 'Missing swap transaction context'
-                : !isSignerMnemonicAccountDetails(account)
-                  ? 'Invalid account type - must be signer mnemonic account'
-                  : 'Invalid swap transaction context',
-          ),
-        )
+        const errorMessage = !account
+          ? 'No account available'
+          : !swapTxContext
+            ? 'Missing swap transaction context'
+            : !isSignerMnemonicAccountDetails(account)
+              ? 'Invalid account type - must be signer mnemonic account'
+              : 'Invalid swap transaction context'
+
+        if (process.env.NODE_ENV === 'development') {
+          console.error('[Swap] Error: Validation failed in executeSwapService', {
+            error: errorMessage,
+          })
+        }
+
+        ctx.onFailure(new Error(errorMessage))
         return
       }
 
@@ -90,7 +94,19 @@ export function createExecuteSwapService(ctx: {
           wrapType,
           inputCurrencyAmount: currencyAmounts.input ?? undefined,
         })
-        .catch(ctx.onFailure)
+        .catch((error) => {
+          const swapError = error instanceof Error ? error : new Error(String(error))
+          if (process.env.NODE_ENV === 'development') {
+            console.error('[Swap] Error: onExecuteSwap failed', {
+              error: swapError.message,
+              errorDetails: swapError,
+              stack: swapError.stack,
+              accountAddress: account.address,
+              txId,
+            })
+          }
+          ctx.onFailure(swapError)
+        })
     },
   }
 }

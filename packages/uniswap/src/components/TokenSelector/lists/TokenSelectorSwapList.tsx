@@ -51,24 +51,6 @@ function useTokenSectionsForSwap({
     poolChainId,
   )
 
-  // Debug logs
-  if (typeof window !== 'undefined') {
-    console.log('[TokenSelectorSwapList] Debug:', {
-      chainFilter,
-      poolChainId,
-      hskPools: hskPools?.length,
-      hskPoolsLoading,
-      hskPoolsError: hskPoolsError?.message,
-      poolTokensOptions: poolTokensOptions?.length,
-      poolTokensLoading,
-      samplePoolTokens: poolTokensOptions?.slice(0, 3).map(t => ({
-        symbol: t.currencyInfo?.currency.symbol,
-        name: t.currencyInfo?.currency.name,
-        address: t.currencyInfo?.currency.address,
-      })),
-    })
-  }
-
   // Other token options commented out - 其他代币选项已注释
   // const {
   //   data: portfolioTokenOptions,

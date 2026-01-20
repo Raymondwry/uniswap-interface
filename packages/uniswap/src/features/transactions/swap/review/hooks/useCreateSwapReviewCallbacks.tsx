@@ -86,6 +86,12 @@ export function useCreateSwapReviewCallbacks(ctx: {
 
   const onFailure = useCallback(
     (error?: Error, onPressRetry?: () => void) => {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[Swap Result] Swap failed:', {
+          error: error?.message || 'Unknown error',
+          errorDetails: error,
+        })
+      }
       resetCurrentStep()
 
       // Create a new txId for the next transaction, as the existing one may be used in state to track the failed submission.
@@ -99,6 +105,13 @@ export function useCreateSwapReviewCallbacks(ctx: {
   )
 
   const onSuccess = useCallback(() => {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[Swap Result] Swap succeeded!', {
+        chainId: derivedSwapInfo.chainId,
+        inputCurrency: derivedSwapInfo.currencies.input?.currency.symbol,
+        outputCurrency: derivedSwapInfo.currencies.output?.currency.symbol,
+      })
+    }
     // For Unichain networks, trigger confirmation and branch to stall+fetch logic (ie handle in component)
     if (isFlashblocksEnabled && shouldShowConfirmedState) {
       resetCurrentStep()
@@ -152,6 +165,13 @@ export function useCreateSwapReviewCallbacks(ctx: {
       return
     }
 
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[Swap] Starting swap execution...', {
+        trade: swapParams.trade,
+        chainId: swapParams.derivedSwapInfo.chainId,
+      })
+    }
+
     // Ensure we have fresh transaction data before executing the swap.
     // We need this because we allow the user to click `Submit` when a new `/quote` response is being displayed in the UI
     // even though we might still not have the corresponding `/swap` response for that `/quote`.
@@ -180,6 +200,13 @@ export function useCreateSwapReviewCallbacks(ctx: {
       // If we fail to get fresh data, show error and don't proceed with swap
       onFailure(wrappedError)
       return
+    }
+
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[Swap] Transaction data prepared, executing swap...', {
+        txRequests: freshSwapTxData.txRequests,
+        gasEstimate: freshSwapTxData.gasFeeEstimation,
+      })
     }
 
     const executeSwapService = getExecuteSwapService({

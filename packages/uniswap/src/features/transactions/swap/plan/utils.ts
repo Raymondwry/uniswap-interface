@@ -21,13 +21,25 @@ export async function handleSwitchChains(params: {
 
   const swapChainId = swapTxContext.trade.inputAmount.currency.chainId
 
-  if (isJupiter(swapTxContext) || swapChainId === startChainId) {
+  // If startChainId is undefined, we assume we're already on the correct chain (or don't need to switch)
+  // This is common when the account hasn't been initialized yet or we're testing a single chain
+  if (isJupiter(swapTxContext) || swapChainId === startChainId || startChainId === undefined) {
     return { chainSwitchFailed: false }
   }
 
-  const chainSwitched = await selectChain(swapChainId)
-
-  return { chainSwitchFailed: !chainSwitched }
+  try {
+    const chainSwitched = await selectChain(swapChainId)
+    return { chainSwitchFailed: !chainSwitched }
+  } catch (error) {
+    if (process.env.NODE_ENV === 'development') {
+      console.error('[Swap] Error: selectChain threw error', {
+        error: error instanceof Error ? error.message : String(error),
+        fromChainId: startChainId,
+        toChainId: swapChainId,
+      })
+    }
+    return { chainSwitchFailed: true }
+  }
 }
 
 export function stepHasFinalized(step: TradingApi.PlanStep): boolean {

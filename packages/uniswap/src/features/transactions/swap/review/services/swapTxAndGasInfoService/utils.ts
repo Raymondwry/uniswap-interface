@@ -54,6 +54,7 @@ import {
 import { SWAP_GAS_URGENCY_OVERRIDE } from 'uniswap/src/features/transactions/swap/utils/tradingApi'
 import type { ValidatedTransactionRequest } from 'uniswap/src/features/transactions/types/transactionRequests'
 import { CurrencyField } from 'uniswap/src/types/currency'
+import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { logger } from 'utilities/src/logger/logger'
 import { isExtensionApp, isMobileApp, isWebApp } from 'utilities/src/platform'
 import type { ITraceContext } from 'utilities/src/telemetry/trace/TraceContext'
@@ -216,7 +217,7 @@ function getGasFeeFromQuote(
     const gasPriceWei = swapQuote.gasPriceWei
     const gasUseEstimate = swapQuote.gasUseEstimate
 
-    if (gasPriceWei && gasUseEstimate) {
+    if (gasPriceWei && gasUseEstimate && typeof gasPriceWei === 'string' && typeof gasUseEstimate === 'string') {
       try {
         // Calculate: gasFee = gasPriceWei * gasUseEstimate
         const gasFeeValue = (BigInt(gasPriceWei) * BigInt(gasUseEstimate)).toString()
@@ -234,6 +235,174 @@ function getGasFeeFromQuote(
   return { value: undefined, displayValue: undefined }
 }
 
+/**
+ * Build transaction request from quote methodParameters when swap API response is not available
+ */
+function buildTxRequestFromQuote(
+  swapQuote: TradingApi.ClassicQuote | TradingApi.BridgeQuote | undefined,
+  chainId: number,
+): providers.TransactionRequest[] | undefined {
+  // Type assertion: methodParameters exists in ClassicQuote but may not be in type definition
+  const quoteWithMethodParams = swapQuote as (TradingApi.ClassicQuote | TradingApi.BridgeQuote) & {
+    methodParameters?: { calldata: string; value: string }
+  }
+
+  if (!quoteWithMethodParams?.methodParameters) {
+    if (process.env.NODE_ENV === 'development') {
+      console.error('[Swap] Error: No methodParameters in quote', {
+        hasSwapQuote: !!swapQuote,
+        chainId,
+      })
+    }
+    return undefined
+  }
+
+  const { calldata, value } = quoteWithMethodParams.methodParameters
+
+  if (!calldata) {
+    if (process.env.NODE_ENV === 'development') {
+      console.error('[Swap] Error: No calldata in methodParameters', {
+        hasMethodParameters: !!quoteWithMethodParams?.methodParameters,
+        hasValue: !!value,
+        chainId,
+      })
+    }
+    return undefined
+  }
+
+  // Get Universal Router address from chainId
+  // For HashKey chains, use the first address from CHAIN_TO_UNIVERSAL_ROUTER_ADDRESS if available
+  // Otherwise, try to get from UNIVERSAL_ROUTER_ADDRESS function
+  let routerAddress: string | undefined
+  let routerSource: string | undefined
+
+  // Try to get from CHAIN_TO_UNIVERSAL_ROUTER_ADDRESS first (for HashKey chains)
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { CHAIN_TO_UNIVERSAL_ROUTER_ADDRESS } = require('uniswap/src/features/transactions/swap/components/UnichainInstantBalanceModal/constants')
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { UniverseChainId: UniverseChainIdEnum } = require('uniswap/src/features/chains/types')
+    
+    // Try both numeric key and enum key lookup
+    const chainIdAsEnum = chainId as UniverseChainId
+    let addresses = CHAIN_TO_UNIVERSAL_ROUTER_ADDRESS[chainIdAsEnum]
+    
+    // If not found, try looking up by numeric value (for HashKey chains: 133, 177)
+    if (!addresses && (chainId === 133 || chainId === 177)) {
+      // Try direct numeric lookup
+      addresses = CHAIN_TO_UNIVERSAL_ROUTER_ADDRESS[chainId as keyof typeof CHAIN_TO_UNIVERSAL_ROUTER_ADDRESS]
+      // Also try enum lookup
+      if (!addresses) {
+        const hashKeyEnumValue = chainId === 133 ? UniverseChainIdEnum.HashKeyTestnet : UniverseChainIdEnum.HashKey
+        addresses = CHAIN_TO_UNIVERSAL_ROUTER_ADDRESS[hashKeyEnumValue]
+      }
+    }
+    if (addresses && addresses.length > 0) {
+      routerAddress = addresses[0]
+      routerSource = 'CHAIN_TO_UNIVERSAL_ROUTER_ADDRESS'
+    }
+  } catch (error) {
+    if (process.env.NODE_ENV === 'development') {
+      console.error('[Swap] Error: Failed to load CHAIN_TO_UNIVERSAL_ROUTER_ADDRESS', {
+        error: error instanceof Error ? error.message : String(error),
+        chainId,
+        errorDetails: error,
+      })
+    }
+  }
+
+  // Fallback to UNIVERSAL_ROUTER_ADDRESS if available
+  if (!routerAddress) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { UNIVERSAL_ROUTER_ADDRESS, UniversalRouterVersion } = require('@hkdex-tmp/universal_router_sdk')
+      routerAddress = UNIVERSAL_ROUTER_ADDRESS(UniversalRouterVersion.V1_2, chainId)
+      routerSource = 'UNIVERSAL_ROUTER_ADDRESS'
+    } catch (error) {
+      if (process.env.NODE_ENV === 'development') {
+        console.error('[Swap] Error: Failed to get router address from UNIVERSAL_ROUTER_ADDRESS', {
+          error: error instanceof Error ? error.message : String(error),
+          chainId,
+        })
+      }
+    }
+  }
+
+  if (!routerAddress) {
+    // For HashKey chains (133, 177), they may not use Universal Router
+    // In this case, we need to check if the quote's methodParameters contains a 'to' address
+    // or if the user has configured a custom router address
+    if (chainId === 133 || chainId === 177) {
+      if (process.env.NODE_ENV === 'development') {
+        console.error('[Swap] Error: HashKey chain does not have Universal Router configured', {
+          chainId,
+          routerSource,
+          message: 'Please configure the swap router address for HashKey chains in CHAIN_TO_UNIVERSAL_ROUTER_ADDRESS',
+          suggestion: 'Add the HashKey swap router address to constants.ts',
+        })
+      }
+      logger.error('HashKey chain does not have Universal Router configured', {
+        tags: { file: 'utils.ts', function: 'buildTxRequestFromQuote' },
+        extra: { chainId },
+      })
+      // Return undefined to indicate that we cannot build the transaction request
+      // The user needs to configure the router address in CHAIN_TO_UNIVERSAL_ROUTER_ADDRESS
+      return undefined
+    }
+
+    if (process.env.NODE_ENV === 'development') {
+      console.error('[Swap] Error: Could not determine router address', {
+        chainId,
+        routerSource,
+      })
+    }
+    logger.error('Could not determine Universal Router address', {
+      tags: { file: 'utils.ts', function: 'buildTxRequestFromQuote' },
+      extra: { chainId },
+    })
+    return undefined
+  }
+
+  // Build transaction request from quote methodParameters
+  // Note: chainId is required for validateTransactionRequest to pass validation
+  const txRequest: providers.TransactionRequest = {
+    to: routerAddress,
+    data: calldata,
+    value: value && value !== '0x00' ? value : undefined,
+    chainId, // Required for validation
+  }
+
+  // Add gas limit from quote if available
+  // This is critical - quote's gasUseEstimate is more accurate than provider's estimate
+  // Add 20% buffer to gas limit for safety (to account for price changes, etc.)
+  const quoteWithGasEstimate = quoteWithMethodParams as (TradingApi.ClassicQuote | TradingApi.BridgeQuote) & {
+    gasUseEstimate?: string | number
+  }
+  if (quoteWithGasEstimate && 'gasUseEstimate' in quoteWithGasEstimate && quoteWithGasEstimate.gasUseEstimate) {
+    try {
+      const gasUseEstimateStr = String(quoteWithGasEstimate.gasUseEstimate)
+      // Add 20% buffer: gasLimit = gasUseEstimate * 1.2
+      const gasLimitWithBuffer = (BigInt(gasUseEstimateStr) * BigInt(120)) / BigInt(100)
+      txRequest.gasLimit = gasLimitWithBuffer.toString()
+      
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[Swap] buildTxRequestFromQuote: Set gasLimit from quote', {
+          gasUseEstimate: gasUseEstimateStr,
+          gasLimitWithBuffer: gasLimitWithBuffer.toString(),
+          chainId,
+        })
+      }
+    } catch (error) {
+      // If conversion fails, let prepareTransaction handle it
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('[Swap] Failed to set gasLimit from quote:', error)
+      }
+    }
+  }
+
+  return [txRequest]
+}
+
 export function createProcessSwapResponse({ gasStrategy }: { gasStrategy: GasStrategy }) {
   return function processSwapResponse({
     response,
@@ -244,6 +413,7 @@ export function createProcessSwapResponse({ gasStrategy }: { gasStrategy: GasStr
     swapRequestParams,
     isRevokeNeeded,
     permitsDontNeedSignature,
+    chainId,
   }: {
     response: SwapData | undefined
     error: Error | null
@@ -253,30 +423,120 @@ export function createProcessSwapResponse({ gasStrategy }: { gasStrategy: GasStr
     swapRequestParams: TradingApi.CreateSwapRequest | undefined
     isRevokeNeeded: boolean
     permitsDontNeedSignature?: boolean
+    chainId?: number
   }): TransactionRequestInfo {
-    // We use the gasFee estimate from quote, as its more accurate
-    // Calculate gasFee from quote response (either directly from gasFee or from gasPriceWei * gasUseEstimate)
-    const swapGasFee = getGasFeeFromQuote(swapQuote, gasStrategy)
+    // Try to get chainId from swapQuote if not provided
+    let finalChainId = chainId
+    if (!finalChainId && swapQuote) {
+    // Try to get chainId from quote's token chain IDs
+    const quoteWithChainIds = swapQuote as (TradingApi.ClassicQuote | TradingApi.BridgeQuote) & {
+      tokenInChainId?: number | string
+      tokenOutChainId?: number | string
+    }
+    const tokenInChainId = 'tokenInChainId' in quoteWithChainIds ? quoteWithChainIds.tokenInChainId : undefined
+    const tokenOutChainId = 'tokenOutChainId' in quoteWithChainIds ? quoteWithChainIds.tokenOutChainId : undefined
+    
+    if (tokenInChainId && typeof tokenInChainId === 'number') {
+      finalChainId = tokenInChainId
+    } else if (tokenOutChainId && typeof tokenOutChainId === 'number') {
+      finalChainId = tokenOutChainId
+    }
+  }
+
+  // Final fallback: use HashKeyTestnet (133) since we only support HSK chains
+  if (!finalChainId) {
+    finalChainId = 133 // UniverseChainId.HashKeyTestnet
+  }
+
+  // We use the gasFee estimate from quote, as its more accurate
+  // Calculate gasFee from quote response (either directly from gasFee or from gasPriceWei * gasUseEstimate)
+  const swapGasFee = getGasFeeFromQuote(swapQuote, gasStrategy)
 
     // This is a case where simulation fails on backend, meaning txn is expected to fail
     const simulationError = getSimulationError({ swapQuote, isRevokeNeeded })
 
     const gasEstimateError = simulationError ?? error
 
+    // Only set error if there's actually an error (not just an empty object)
+    // Check if error is a valid Error instance or has meaningful content
+    let finalError: Error | null = null
+    if (gasEstimateError) {
+      if (gasEstimateError instanceof Error) {
+        finalError = gasEstimateError
+      } else if (typeof gasEstimateError === 'object' && gasEstimateError !== null) {
+        // Check if it's not just an empty object
+        const errorKeys = Object.keys(gasEstimateError)
+        if (errorKeys.length > 0) {
+          // Convert to Error if it has content
+          finalError = new Error(JSON.stringify(gasEstimateError))
+        }
+      }
+    }
+
     const gasFeeResult = {
       value: swapGasFee.value,
       displayValue: swapGasFee.displayValue,
       isLoading: isSwapLoading,
-      error: gasEstimateError,
+      error: finalError,
     }
 
     const gasEstimate: SwapGasFeeEstimation = {
       swapEstimate: response?.gasEstimate,
     }
 
+    // Use swap API transactions if available, otherwise build from quote methodParameters
+    let txRequests: providers.TransactionRequest[] | undefined
+
+    if (response?.transactions) {
+      txRequests = response.transactions
+    } else if (finalChainId && swapQuote) {
+      txRequests = buildTxRequestFromQuote(swapQuote, finalChainId)
+      if (!txRequests) {
+        if (process.env.NODE_ENV === 'development') {
+          console.error('[Swap] Error: Failed to build transaction requests from quote', {
+            chainId: finalChainId,
+            originalChainId: chainId,
+            hasSwapQuote: !!swapQuote,
+            hasMethodParameters: !!(swapQuote as any)?.methodParameters,
+            methodParameters: (() => {
+              const methodParams = (swapQuote as any)?.methodParameters
+              if (methodParams) {
+                return {
+                  hasCalldata: !!methodParams.calldata,
+                  hasValue: !!methodParams.value,
+                  calldata: methodParams.calldata?.substring(0, 20) + '...',
+                }
+              }
+              return undefined
+            })(),
+            // This error means swap cannot proceed - txRequests is required
+            willCauseValidationFailure: true,
+          })
+        }
+      }
+    } else {
+      // This should not happen if finalChainId fallback is working correctly
+      // But if it does, we should still try to build with finalChainId
+      if (finalChainId && swapQuote) {
+        txRequests = buildTxRequestFromQuote(swapQuote, finalChainId)
+      } else {
+        if (process.env.NODE_ENV === 'development') {
+          console.error('[Swap] Error: Cannot build transaction requests - missing required data', {
+            hasResponseTransactions: !!response?.transactions,
+            hasChainId: !!chainId,
+            hasFinalChainId: !!finalChainId,
+            hasSwapQuote: !!swapQuote,
+            chainId,
+            finalChainId,
+            swapQuoteKeys: swapQuote ? Object.keys(swapQuote) : undefined,
+          })
+        }
+      }
+    }
+
     return {
       gasFeeResult,
-      txRequests: response?.transactions,
+      txRequests,
       permitData: permitsDontNeedSignature ? undefined : permitData,
       gasEstimate,
       includesDelegation: response?.includesDelegation,
@@ -372,6 +632,7 @@ export function createGasFields({
     revokeGasFeeResult,
     permitTxInfo.gasFeeResult,
   )
+
 
   const gasFeeEstimation: SwapGasFeeEstimation = {
     ...swapTxInfo.gasEstimate,

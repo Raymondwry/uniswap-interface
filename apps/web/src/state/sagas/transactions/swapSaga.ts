@@ -78,12 +78,32 @@ import { useTrace } from 'utilities/src/telemetry/trace/TraceContext'
 function* handleSwapTransactionStep(params: HandleSwapStepParams): SagaGenerator<string> {
   const { trade, step, signature, analytics, onTransactionHash } = params
 
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[Swap] handleSwapTransactionStep: Starting', {
+      stepType: step.type,
+      hasStep: !!step,
+      hasSignature: !!signature,
+    })
+  }
+
   const info = getSwapTransactionInfo({
     trade,
     isFinalStep: analytics.is_final_step,
     swapStartTimestamp: analytics.swap_start_timestamp,
   })
+
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[Swap] handleSwapTransactionStep: Calling getSwapTxRequest')
+  }
   const txRequest = yield* call(getSwapTxRequest, step, signature)
+
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[Swap] handleSwapTransactionStep: Got txRequest:', {
+      hasTxRequest: !!txRequest,
+      to: txRequest?.to,
+      chainId: txRequest?.chainId,
+    })
+  }
 
   const onModification = ({ hash, data }: VitalTxFields) => {
     sendAnalyticsEvent(SwapEventName.SwapModifiedInWallet, {
@@ -96,6 +116,14 @@ function* handleSwapTransactionStep(params: HandleSwapStepParams): SagaGenerator
 
   // Now that we have the txRequest, we can create a definitive SwapTransactionStep, incase we started with an async step.
   const onChainStep = { ...step, txRequest }
+  
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[Swap] handleSwapTransactionStep: About to call handleOnChainStep:', {
+      stepType: onChainStep.type,
+      hasTxRequest: !!onChainStep.txRequest,
+    })
+  }
+  
   const hash = yield* call(handleOnChainStep, {
     ...params,
     info,
@@ -103,7 +131,12 @@ function* handleSwapTransactionStep(params: HandleSwapStepParams): SagaGenerator
     ignoreInterrupt: true, // We avoid interruption during the swap step, since it is too late to give user a new trade once the swap is submitted.
     shouldWaitForConfirmation: false,
     onModification,
+    allowDuplicativeTx: true, // Allow duplicate transactions for swap - user may want to submit multiple swaps
   })
+
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[Swap] handleSwapTransactionStep: handleOnChainStep returned hash:', hash)
+  }
 
   handleSwapTransactionAnalytics({ ...params, hash })
 
@@ -223,13 +256,25 @@ function* swap(params: SwapParams) {
   } = params
   const { trade } = swapTxContext
 
+  const swapChainId = swapTxContext.trade.inputAmount.currency.chainId
+  
   const { chainSwitchFailed } = yield* call(handleSwitchChains, {
     selectChain: params.selectChain,
     startChainId: params.startChainId,
     swapTxContext,
   })
+  
   if (chainSwitchFailed) {
-    onFailure()
+    const error = new Error(`Chain switch failed: unable to switch from chain ${params.startChainId} to chain ${swapChainId}`)
+    if (process.env.NODE_ENV === 'development') {
+      console.error('[Swap] Error: Chain switch failed', {
+        error: error.message,
+        startChainId: params.startChainId,
+        swapChainId,
+      })
+    }
+    const onPressRetry = params.getOnPressRetry(error)
+    onFailure(error, onPressRetry)
     return
   }
 
@@ -248,22 +293,43 @@ function* swap(params: SwapParams) {
     }
 
     for (step of steps) {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[Swap] swap saga: Processing step:', {
+          stepType: step.type,
+          stepIndex: steps.indexOf(step),
+        })
+      }
       switch (step.type) {
         case TransactionStepType.TokenRevocationTransaction:
         case TransactionStepType.TokenApprovalTransaction: {
+          if (process.env.NODE_ENV === 'development') {
+            console.log('[Swap] swap saga: Handling approval step')
+          }
           yield* call(handleApprovalTransactionStep, { address: account.address, step, setCurrentStep })
           break
         }
         case TransactionStepType.Permit2Signature: {
+          if (process.env.NODE_ENV === 'development') {
+            console.log('[Swap] swap saga: Handling permit signature step')
+          }
           signature = yield* call(handleSignatureStep, { address: account.address, step, setCurrentStep })
           break
         }
         case TransactionStepType.Permit2Transaction: {
+          if (process.env.NODE_ENV === 'development') {
+            console.log('[Swap] swap saga: Handling permit transaction step')
+          }
           yield* call(handlePermitTransactionStep, { address: account.address, step, setCurrentStep })
           break
         }
         case TransactionStepType.SwapTransaction:
         case TransactionStepType.SwapTransactionAsync: {
+          if (process.env.NODE_ENV === 'development') {
+            console.log('[Swap] swap saga: Handling swap transaction step:', {
+              stepType: step.type,
+              hasTxRequest: !!step.txRequest,
+            })
+          }
           requireRouting(trade, [TradingApi.Routing.CLASSIC, TradingApi.Routing.BRIDGE])
           yield* call(handleSwapTransactionStep, {
             address: account.address,
@@ -303,11 +369,20 @@ function* swap(params: SwapParams) {
     if (displayableError) {
       logger.error(displayableError, { tags: { file: 'swapSaga', function: 'swap' } })
     }
+    if (process.env.NODE_ENV === 'development') {
+      console.error('[Swap] swap saga: Error occurred:', {
+        error: displayableError?.message || error instanceof Error ? error.message : String(error),
+        stepType: step?.type,
+      })
+    }
     const onPressRetry = params.getOnPressRetry(displayableError)
     onFailure(displayableError, onPressRetry)
     return
   }
 
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[Swap] swap saga: All steps completed, calling onSuccess')
+  }
   yield* call(onSuccess)
 }
 
@@ -333,6 +408,13 @@ export function useSwapCallback(): SwapCallback {
 
   return useCallback(
     (args: SwapCallbackParams) => {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[Swap] swapCallback called', {
+          routing: args.swapTxContext.routing,
+          hasTxRequests: !!args.swapTxContext.txRequests,
+          txRequestCount: args.swapTxContext.txRequests?.length || 0,
+        })
+      }
       const {
         swapTxContext,
         onSuccess,

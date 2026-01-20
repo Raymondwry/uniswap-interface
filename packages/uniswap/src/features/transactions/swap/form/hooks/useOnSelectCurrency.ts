@@ -153,25 +153,6 @@ export function useOnSelectCurrency({
         outputCurrency: CurrencyField.OUTPUT === field ? currency : todoFixMeOtherCurrency?.currency,
       }
 
-      // Console log selected coin information
-      if (typeof window !== 'undefined') {
-        console.log('[Token Selected]', {
-          field: field === CurrencyField.INPUT ? 'INPUT' : 'OUTPUT',
-          currency: {
-            symbol: currency.symbol,
-            name: currency.name,
-            chainId: currency.chainId,
-            address: currencyAddress(currency),
-            decimals: currency.decimals,
-            isNative: currency.isNative,
-            currencyId: currencyId(currency),
-          },
-          allowCrossChainPair,
-          isPreselectedAsset,
-          isBridgePair,
-        })
-      }
-
       onSelect?.()
       updateSwapForm(newState)
       maybeLogFirstSwapAction(traceRef.current)

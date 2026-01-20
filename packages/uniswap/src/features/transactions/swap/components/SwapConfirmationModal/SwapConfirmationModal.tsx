@@ -317,17 +317,6 @@ export function SwapConfirmationModal({
     }
   }, [isOpen])
 
-  // Debug: log modal state
-  if (process.env.NODE_ENV === 'development') {
-    console.log('SwapConfirmationModal render:', {
-      isOpen,
-      hasInputCurrency: !!inputCurrency,
-      hasOutputCurrency: !!outputCurrency,
-      hasInputCurrencyInfo: !!derivedSwapInfo.currencies[CurrencyField.INPUT],
-      hasOutputCurrencyInfo: !!derivedSwapInfo.currencies[CurrencyField.OUTPUT],
-    })
-  }
-
   // Don't render modal if it's not open
   if (!isOpen) {
     return <></>

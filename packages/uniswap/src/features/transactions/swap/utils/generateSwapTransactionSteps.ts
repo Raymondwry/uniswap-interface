@@ -17,6 +17,18 @@ import { isBridge, isClassic, isUniswapX } from 'uniswap/src/features/transactio
 export function generateSwapTransactionSteps(txContext: SwapTxAndGasInfo): TransactionStep[] {
   const isValidSwap = isValidSwapTxContext(txContext)
 
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[Swap] generateSwapTransactionSteps:', {
+      isValidSwap,
+      routing: txContext.routing,
+      hasTxRequests: !!txContext.txRequests,
+      txRequestCount: txContext.txRequests?.length || 0,
+      isClassic: isClassic(txContext),
+      isBridge: isBridge(txContext),
+      isUniswapX: isUniswapX(txContext),
+    })
+  }
+
   if (isValidSwap) {
     const { trade, approveTxRequest, revocationTxRequest } = txContext
 
@@ -59,33 +71,62 @@ export function generateSwapTransactionSteps(txContext: SwapTxAndGasInfo): Trans
           })
         : undefined
 
-      return orderClassicSwapSteps({
+      const steps = orderClassicSwapSteps({
         revocation,
         approval,
         permit,
         swap: createSwapTransactionStep(txContext.txRequests[0]),
       })
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[Swap] generateSwapTransactionSteps: Returning classic steps:', {
+          stepCount: steps.length,
+          stepTypes: steps.map((s) => s.type),
+        })
+      }
+      return steps
     } else if (isUniswapX(txContext)) {
-      return orderUniswapXSteps({
+      const steps = orderUniswapXSteps({
         revocation,
         approval,
         signOrder: createSignUniswapXOrderStep(txContext.permit.typedData, txContext.trade.quote.quote),
       })
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[Swap] generateSwapTransactionSteps: Returning UniswapX steps:', {
+          stepCount: steps.length,
+          stepTypes: steps.map((s) => s.type),
+        })
+      }
+      return steps
     } else if (isBridge(txContext)) {
+      let steps: TransactionStep[]
       if (txContext.txRequests.length > 1) {
-        return orderClassicSwapSteps({
+        steps = orderClassicSwapSteps({
           permit: undefined,
           swap: createSwapTransactionStepBatched(txContext.txRequests),
         })
+      } else {
+        steps = orderClassicSwapSteps({
+          revocation,
+          approval,
+          permit: undefined,
+          swap: createSwapTransactionStep(txContext.txRequests[0]),
+        })
       }
-      return orderClassicSwapSteps({
-        revocation,
-        approval,
-        permit: undefined,
-        swap: createSwapTransactionStep(txContext.txRequests[0]),
-      })
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[Swap] generateSwapTransactionSteps: Returning bridge steps:', {
+          stepCount: steps.length,
+          stepTypes: steps.map((s) => s.type),
+        })
+      }
+      return steps
     }
   }
 
+  if (process.env.NODE_ENV === 'development') {
+    console.warn('[Swap] generateSwapTransactionSteps: Returning empty steps array!', {
+      isValidSwap,
+      routing: txContext.routing,
+    })
+  }
   return []
 }
