@@ -80,8 +80,15 @@ export const getFeatureFlaggedHeaders = (
   }
   const uniquoteEnabled = getFeatureFlag(FeatureFlags.UniquoteEnabled)
   const viemProviderEnabled = getFeatureFlag(FeatureFlags.ViemProviderEnabled)
-  addHeaderIfEnabled({ headers, key: TradingApiHeaders.UniquoteEnabled, enabled: uniquoteEnabled })
-  addHeaderIfEnabled({ headers, key: TradingApiHeaders.ViemProviderEnabled, enabled: viemProviderEnabled })
+  // Avoid custom headers on /quote until API Gateway CORS allowlist is updated.
+  // TODO: Re-enable /quote headers once CORS allowlist includes them.
+  if (tradingApiPath !== TRADING_API_PATHS.quote) {
+    addHeaderIfEnabled({ headers, key: TradingApiHeaders.UniquoteEnabled, enabled: uniquoteEnabled })
+    addHeaderIfEnabled({ headers, key: TradingApiHeaders.ViemProviderEnabled, enabled: viemProviderEnabled })
+  } else {
+    // addHeaderIfEnabled({ headers, key: TradingApiHeaders.UniquoteEnabled, enabled: uniquoteEnabled })
+    // addHeaderIfEnabled({ headers, key: TradingApiHeaders.ViemProviderEnabled, enabled: viemProviderEnabled })
+  }
 
   const chainedActionsEnabled = getFeatureFlag(FeatureFlags.ChainedActions)
   const unirouteEnabled = getFeatureFlag(FeatureFlags.UnirouteEnabled)
@@ -89,14 +96,17 @@ export const getFeatureFlaggedHeaders = (
   const disableUniswapInterfaceFees = getFeatureFlag(FeatureFlags.NoUniswapInterfaceFees)
   switch (tradingApiPath) {
     case TRADING_API_PATHS.quote:
-      addHeaderIfEnabled({ headers, key: TradingApiHeaders.UnirouteEnabled, enabled: unirouteEnabled })
-      addHeaderIfEnabled({ headers, key: TradingApiHeaders.Erc20EthEnabled, enabled: ethAsErc20UniswapXEnabled })
-      addHeaderIfEnabled({ headers, key: TradingApiHeaders.ChainedActionsEnabled, enabled: chainedActionsEnabled })
-      addHeaderIfEnabled({
-        headers,
-        key: TradingApiHeaders.DisableUniswapInterfaceFees,
-        enabled: disableUniswapInterfaceFees,
-      })
+      // Temporarily skip headers blocked by API Gateway CORS allowlist.
+      // TODO: Re-enable /quote headers once CORS allowlist includes them.
+      // Server should add: x-uniquote-enabled, x-disable-uniswap-interface-fees.
+      // addHeaderIfEnabled({ headers, key: TradingApiHeaders.UnirouteEnabled, enabled: unirouteEnabled })
+      // addHeaderIfEnabled({ headers, key: TradingApiHeaders.Erc20EthEnabled, enabled: ethAsErc20UniswapXEnabled })
+      // addHeaderIfEnabled({ headers, key: TradingApiHeaders.ChainedActionsEnabled, enabled: chainedActionsEnabled })
+      // addHeaderIfEnabled({
+      //   headers,
+      //   key: TradingApiHeaders.DisableUniswapInterfaceFees,
+      //   enabled: disableUniswapInterfaceFees,
+      // })
       break
     case TRADING_API_PATHS.plan:
       addHeaderIfEnabled({ headers, key: TradingApiHeaders.ChainedActionsEnabled, enabled: chainedActionsEnabled })
@@ -141,8 +151,23 @@ type IndicativeQuoteRequest = Pick<
   'type' | 'amount' | 'tokenInChainId' | 'tokenOutChainId' | 'tokenIn' | 'tokenOut' | 'swapper'
 >
 
-// Build the quote URL path - ensure it starts with / if prefix is empty
-const quoteUrlPath = tradingApiVersionPrefix
+// Build the quote URL path.
+// If the override base already includes a version segment (e.g. /prod/v2), do not append /v1.
+const shouldUseVersionPrefix = (() => {
+  if (!quoteApiBaseUrl) {
+    return true
+  }
+  try {
+    const url = new URL(quoteApiBaseUrl)
+    const path = url.pathname.replace(/\/+$/, '')
+    return !path.endsWith('/v2')
+  } catch {
+    // If it's not a valid URL, fall back to previous behavior.
+    return true
+  }
+})()
+
+const quoteUrlPath = shouldUseVersionPrefix
   ? `${tradingApiVersionPrefix}/${TRADING_API_PATHS.quote}`
   : `/${TRADING_API_PATHS.quote}`
 
