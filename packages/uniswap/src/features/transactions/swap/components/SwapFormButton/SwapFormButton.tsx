@@ -195,24 +195,8 @@ export function SwapFormButton({ tokenColor }: { tokenColor?: string }): JSX.Ele
     try {
       if (!swapParams.trade) {
         const error = new Error('No `trade` found when calling `executeSwap`')
-        if (process.env.NODE_ENV === 'development') {
-          console.error('[Swap] Error: No trade found', {
-            swapParams: {
-              hasTrade: !!swapParams.trade,
-              hasDerivedSwapInfo: !!swapParams.derivedSwapInfo,
-              chainId: swapParams.derivedSwapInfo?.chainId,
-            },
-          })
-        }
         onFailure(error)
         return
-      }
-
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[Swap] Starting swap execution...', {
-          trade: swapParams.trade,
-          chainId: swapParams.derivedSwapInfo.chainId,
-        })
       }
 
       // Ensure we have fresh transaction data before executing the swap
@@ -232,14 +216,6 @@ export function SwapFormButton({ tokenColor }: { tokenColor?: string }): JSX.Ele
           cause: error,
         })
 
-        if (process.env.NODE_ENV === 'development') {
-          console.error('[Swap] Error: Failed to ensure fresh transaction data', {
-            error: error.message,
-            errorDetails: error,
-            cause: error instanceof Error ? error.cause : undefined,
-          })
-        }
-
         logger.error(wrappedError, {
           tags: { file: 'SwapFormButton', function: 'executeSwapDirectly' },
         })
@@ -250,44 +226,12 @@ export function SwapFormButton({ tokenColor }: { tokenColor?: string }): JSX.Ele
 
       if (!freshSwapTxData) {
         const error = new Error('Empty swap transaction data returned')
-        if (process.env.NODE_ENV === 'development') {
-          console.error('[Swap] Error: Empty swap transaction data', {
-            swapParams: {
-              trade: swapParams.trade,
-              chainId: swapParams.derivedSwapInfo.chainId,
-            },
-          })
-        }
         onFailure(error)
         return
       }
 
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[Swap] Transaction data prepared, executing swap...', {
-          txRequests: 'txRequests' in freshSwapTxData ? freshSwapTxData.txRequests : undefined,
-          gasEstimate: freshSwapTxData.gasFeeEstimation,
-          gasFee: freshSwapTxData.gasFee,
-          routing: freshSwapTxData.routing,
-          hasTrade: !!freshSwapTxData.trade,
-          isValidSwapTxContext: isValidSwapTxContext(freshSwapTxData),
-          swapTxContextKeys: Object.keys(freshSwapTxData),
-        })
-      }
-
       if (!isValidSwapTxContext(freshSwapTxData)) {
         const error = new Error('Invalid swap transaction context')
-        if (process.env.NODE_ENV === 'development') {
-          console.error('[Swap] Error: Invalid swap transaction context', {
-            swapTxContext: {
-              routing: freshSwapTxData.routing,
-              hasTrade: !!freshSwapTxData.trade,
-              hasTxRequests: 'txRequests' in freshSwapTxData ? !!freshSwapTxData.txRequests : false,
-              gasFee: freshSwapTxData.gasFee,
-              gasFeeEstimation: freshSwapTxData.gasFeeEstimation,
-              keys: Object.keys(freshSwapTxData),
-            },
-          })
-        }
         onFailure(error)
         return
       }
@@ -301,22 +245,12 @@ export function SwapFormButton({ tokenColor }: { tokenColor?: string }): JSX.Ele
         getSwapTxContext: () => freshSwapTxData,
       })
 
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[Swap] Calling executeSwapService.executeSwap()...')
-      }
-
       executeSwapService.executeSwap()
     } catch (error) {
       const swapError = error instanceof Error ? error : new Error(String(error))
-      if (process.env.NODE_ENV === 'development') {
-        console.error('[Swap] Error: Unexpected error in executeSwapDirectly', {
-          error: swapError.message,
-          errorDetails: swapError,
-          stack: swapError.stack,
-        })
-      }
       logger.error(swapError, {
         tags: { file: 'SwapFormButton', function: 'executeSwapDirectly' },
+        extra: { stack: swapError.stack },
       })
       onFailure(swapError)
     }

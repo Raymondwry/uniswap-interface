@@ -22,6 +22,14 @@ import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 import { usePrevious } from 'utilities/src/react/hooks'
 
+// Conditionally import useCurrentBlockTimestamp only on web app
+let useCurrentBlockTimestamp: (() => bigint | undefined) | undefined
+if (isWebApp) {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const useCurrentBlockTimestampModule = require('apps/web/src/hooks/useCurrentBlockTimestamp')
+  useCurrentBlockTimestamp = useCurrentBlockTimestampModule.default || useCurrentBlockTimestampModule
+}
+
 function useSwapTransactionRequestInfo({
   derivedSwapInfo,
   tokenApprovalInfo,
@@ -89,6 +97,21 @@ function useSwapTransactionRequestInfo({
   const swapDelegationInfo = useUniswapContextSelector((ctx) => ctx.getSwapDelegationInfo?.(resolvedChainId))
   const overrideSimulation = !!swapDelegationInfo?.delegationAddress
 
+  // Get block timestamp for accurate deadline calculation
+  // Only fetch on web app (where useCurrentBlockTimestamp is available)
+  const blockTimestamp = isWebApp && useCurrentBlockTimestamp ? useCurrentBlockTimestamp() : undefined
+
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[swap debug] useTransactionRequestInfo - Preparing swap request params:', {
+      customDeadline: transactionSettings.customDeadline,
+      hasSwapQuoteResponse: !!swapQuoteResponse,
+      alreadyApproved: tokenApprovalInfo?.action === ApprovalAction.None && !swapQuoteResponse?.permitTransaction,
+      overrideSimulation,
+      blockTimestamp: blockTimestamp?.toString(),
+      usingBlockTimestamp: !!blockTimestamp,
+    })
+  }
+
   const prepareSwapRequestParams = useMemo(() => createPrepareSwapRequestParams({ gasStrategy }), [gasStrategy])
 
   const swapRequestParams = useMemo(() => {
@@ -98,13 +121,16 @@ function useSwapTransactionRequestInfo({
 
     const alreadyApproved = tokenApprovalInfo?.action === ApprovalAction.None && !swapQuoteResponse.permitTransaction
 
-    return prepareSwapRequestParams({
+    const requestParams = prepareSwapRequestParams({
       swapQuoteResponse,
       signature: signature ?? undefined,
       transactionSettings,
       alreadyApproved,
       overrideSimulation,
+      blockTimestamp,
     })
+
+    return requestParams
   }, [
     swapQuoteResponse,
     tokenApprovalInfo?.action,
@@ -112,6 +138,7 @@ function useSwapTransactionRequestInfo({
     signature,
     transactionSettings,
     overrideSimulation,
+    blockTimestamp,
   ])
 
   const canBatchTransactions = useUniswapContextSelector((ctx) =>
@@ -132,10 +159,11 @@ function useSwapTransactionRequestInfo({
     // Ensure resolvedChainId is always defined
     const chainIdToUse = resolvedChainId ?? UniverseChainId.HashKeyTestnet
 
-    return processSwapResponse({
+    const processResult = processSwapResponse({
         response: data,
         error,
         swapQuote,
+        trade: derivedSwapInfo.trade.trade ?? undefined,
         isSwapLoading,
         permitData,
         swapRequestParams,
@@ -143,6 +171,8 @@ function useSwapTransactionRequestInfo({
         permitsDontNeedSignature,
       chainId: chainIdToUse,
     })
+
+    return processResult
   }, [
       data,
       error,

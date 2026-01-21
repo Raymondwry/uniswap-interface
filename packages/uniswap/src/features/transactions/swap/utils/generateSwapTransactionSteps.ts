@@ -1,3 +1,4 @@
+import { Interface } from '@ethersproject/abi'
 import { createApprovalTransactionStep } from 'uniswap/src/features/transactions/steps/approve'
 import { createPermit2SignatureStep } from 'uniswap/src/features/transactions/steps/permit2Signature'
 import { createPermit2TransactionStep } from 'uniswap/src/features/transactions/steps/permit2Transaction'
@@ -13,21 +14,39 @@ import {
 import { orderUniswapXSteps } from 'uniswap/src/features/transactions/swap/steps/uniswapxSteps'
 import { isValidSwapTxContext, SwapTxAndGasInfo } from 'uniswap/src/features/transactions/swap/types/swapTxAndGasInfo'
 import { isBridge, isClassic, isUniswapX } from 'uniswap/src/features/transactions/swap/utils/routing'
+import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import type { ValidatedTransactionRequest } from 'uniswap/src/features/transactions/types/transactionRequests'
+
+function buildHashKeyApprovalTxRequest({
+  trade,
+  swapTxRequest,
+}: {
+  trade: ClassicTrade | BridgeTrade
+  swapTxRequest: ValidatedTransactionRequest | undefined
+}): ValidatedTransactionRequest | undefined {
+  const chainId = trade.inputAmount.currency.chainId
+  const isHashKeyChain = chainId === UniverseChainId.HashKey || chainId === UniverseChainId.HashKeyTestnet
+  if (!isHashKeyChain) {
+    return undefined
+  }
+
+  const spender = swapTxRequest?.to?.toString()
+  if (!spender) {
+    return undefined
+  }
+
+  const approveInterface = new Interface(['function approve(address spender,uint256 value)'])
+
+  return {
+    to: trade.inputAmount.currency.wrapped.address,
+    data: approveInterface.encodeFunctionData('approve', [spender, trade.inputAmount.quotient.toString()]),
+    value: '0x0',
+    chainId,
+  }
+}
 
 export function generateSwapTransactionSteps(txContext: SwapTxAndGasInfo): TransactionStep[] {
   const isValidSwap = isValidSwapTxContext(txContext)
-
-  if (process.env.NODE_ENV === 'development') {
-    console.log('[Swap] generateSwapTransactionSteps:', {
-      isValidSwap,
-      routing: txContext.routing,
-      hasTxRequests: !!txContext.txRequests,
-      txRequestCount: txContext.txRequests?.length || 0,
-      isClassic: isClassic(txContext),
-      isBridge: isBridge(txContext),
-      isUniswapX: isUniswapX(txContext),
-    })
-  }
 
   if (isValidSwap) {
     const { trade, approveTxRequest, revocationTxRequest } = txContext
@@ -42,7 +61,7 @@ export function generateSwapTransactionSteps(txContext: SwapTxAndGasInfo): Trans
     })
     const approval = createApprovalTransactionStep({
       ...requestFields,
-      txRequest: approveTxRequest,
+      txRequest: approveTxRequest ?? buildHashKeyApprovalTxRequest({ trade, swapTxRequest: txContext.txRequests?.[0] }),
       amount: trade.inputAmount.quotient.toString(),
     })
 
@@ -71,62 +90,34 @@ export function generateSwapTransactionSteps(txContext: SwapTxAndGasInfo): Trans
           })
         : undefined
 
-      const steps = orderClassicSwapSteps({
+      return orderClassicSwapSteps({
         revocation,
         approval,
         permit,
         swap: createSwapTransactionStep(txContext.txRequests[0]),
       })
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[Swap] generateSwapTransactionSteps: Returning classic steps:', {
-          stepCount: steps.length,
-          stepTypes: steps.map((s) => s.type),
-        })
-      }
-      return steps
     } else if (isUniswapX(txContext)) {
-      const steps = orderUniswapXSteps({
+      return orderUniswapXSteps({
         revocation,
         approval,
         signOrder: createSignUniswapXOrderStep(txContext.permit.typedData, txContext.trade.quote.quote),
       })
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[Swap] generateSwapTransactionSteps: Returning UniswapX steps:', {
-          stepCount: steps.length,
-          stepTypes: steps.map((s) => s.type),
-        })
-      }
-      return steps
     } else if (isBridge(txContext)) {
-      let steps: TransactionStep[]
       if (txContext.txRequests.length > 1) {
-        steps = orderClassicSwapSteps({
+        return orderClassicSwapSteps({
           permit: undefined,
           swap: createSwapTransactionStepBatched(txContext.txRequests),
         })
       } else {
-        steps = orderClassicSwapSteps({
+        return orderClassicSwapSteps({
           revocation,
           approval,
           permit: undefined,
           swap: createSwapTransactionStep(txContext.txRequests[0]),
         })
       }
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[Swap] generateSwapTransactionSteps: Returning bridge steps:', {
-          stepCount: steps.length,
-          stepTypes: steps.map((s) => s.type),
-        })
-      }
-      return steps
     }
   }
 
-  if (process.env.NODE_ENV === 'development') {
-    console.warn('[Swap] generateSwapTransactionSteps: Returning empty steps array!', {
-      isValidSwap,
-      routing: txContext.routing,
-    })
-  }
   return []
 }

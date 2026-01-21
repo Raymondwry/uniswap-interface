@@ -16,6 +16,7 @@ import { getTradeSettingsDeadline } from 'uniswap/src/data/apiClients/tradingApi
 import { getChainLabel } from 'uniswap/src/features/chains/utils'
 import { convertGasFeeToDisplayValue, useActiveGasStrategy } from 'uniswap/src/features/gas/hooks'
 import type { GasFeeResult } from 'uniswap/src/features/gas/types'
+import { SwapRouter as V3SwapRouter } from '@uniswap/router-sdk'
 import { SwapEventName } from 'uniswap/src/features/telemetry/constants'
 import { sendAnalyticsEvent } from 'uniswap/src/features/telemetry/send'
 import type { TransactionSettings } from 'uniswap/src/features/transactions/components/settings/types'
@@ -46,6 +47,7 @@ import type {
 import { ApprovalAction } from 'uniswap/src/features/transactions/swap/types/trade'
 import { mergeGasFeeResults } from 'uniswap/src/features/transactions/swap/utils/gas'
 import { isClassic } from 'uniswap/src/features/transactions/swap/utils/routing'
+import { slippageToleranceToPercent } from 'uniswap/src/features/transactions/swap/utils/format'
 import {
   validatePermit,
   validateTransactionRequest,
@@ -100,12 +102,14 @@ export function createPrepareSwapRequestParams({ gasStrategy }: { gasStrategy: G
     transactionSettings,
     alreadyApproved,
     overrideSimulation,
+    blockTimestamp,
   }: {
     swapQuoteResponse: ClassicQuoteResponse | BridgeQuoteResponse | WrapQuoteResponse | UnwrapQuoteResponse
     signature: string | undefined
     transactionSettings: TransactionSettings
     alreadyApproved: boolean
     overrideSimulation?: boolean
+    blockTimestamp?: bigint | number
   }): TradingApi.CreateSwapRequest {
     const isBridgeTrade = swapQuoteResponse.routing === TradingApi.Routing.BRIDGE
     const permitData = swapQuoteResponse.permitData
@@ -119,7 +123,7 @@ export function createPrepareSwapRequestParams({ gasStrategy }: { gasStrategy: G
      */
     const shouldSimulateTxn = overrideSimulation ?? (isBridgeTrade ? false : alreadyApproved)
 
-    const deadline = getTradeSettingsDeadline(transactionSettings.customDeadline)
+    const deadline = getTradeSettingsDeadline(transactionSettings.customDeadline, blockTimestamp)
 
     return {
       quote: swapQuoteResponse.quote,
@@ -238,39 +242,8 @@ function getGasFeeFromQuote(
 /**
  * Build transaction request from quote methodParameters when swap API response is not available
  */
-function buildTxRequestFromQuote(
-  swapQuote: TradingApi.ClassicQuote | TradingApi.BridgeQuote | undefined,
-  chainId: number,
-): providers.TransactionRequest[] | undefined {
-  // Type assertion: methodParameters exists in ClassicQuote but may not be in type definition
-  const quoteWithMethodParams = swapQuote as (TradingApi.ClassicQuote | TradingApi.BridgeQuote) & {
-    methodParameters?: { calldata: string; value: string }
-  }
-
-  if (!quoteWithMethodParams?.methodParameters) {
-    if (process.env.NODE_ENV === 'development') {
-      console.error('[Swap] Error: No methodParameters in quote', {
-        hasSwapQuote: !!swapQuote,
-        chainId,
-      })
-    }
-    return undefined
-  }
-
-  const { calldata, value } = quoteWithMethodParams.methodParameters
-
-  if (!calldata) {
-    if (process.env.NODE_ENV === 'development') {
-      console.error('[Swap] Error: No calldata in methodParameters', {
-        hasMethodParameters: !!quoteWithMethodParams?.methodParameters,
-        hasValue: !!value,
-        chainId,
-      })
-    }
-    return undefined
-  }
-
-  // Get Universal Router address from chainId
+function getRouterAddressForChain(chainId: number): { routerAddress?: string; routerSource?: string } {
+  // Get router address from chainId
   // For HashKey chains, use the first address from CHAIN_TO_UNIVERSAL_ROUTER_ADDRESS if available
   // Otherwise, try to get from UNIVERSAL_ROUTER_ADDRESS function
   let routerAddress: string | undefined
@@ -282,11 +255,11 @@ function buildTxRequestFromQuote(
     const { CHAIN_TO_UNIVERSAL_ROUTER_ADDRESS } = require('uniswap/src/features/transactions/swap/components/UnichainInstantBalanceModal/constants')
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { UniverseChainId: UniverseChainIdEnum } = require('uniswap/src/features/chains/types')
-    
+
     // Try both numeric key and enum key lookup
     const chainIdAsEnum = chainId as UniverseChainId
     let addresses = CHAIN_TO_UNIVERSAL_ROUTER_ADDRESS[chainIdAsEnum]
-    
+
     // If not found, try looking up by numeric value (for HashKey chains: 133, 177)
     if (!addresses && (chainId === 133 || chainId === 177)) {
       // Try direct numeric lookup
@@ -302,13 +275,7 @@ function buildTxRequestFromQuote(
       routerSource = 'CHAIN_TO_UNIVERSAL_ROUTER_ADDRESS'
     }
   } catch (error) {
-    if (process.env.NODE_ENV === 'development') {
-      console.error('[Swap] Error: Failed to load CHAIN_TO_UNIVERSAL_ROUTER_ADDRESS', {
-        error: error instanceof Error ? error.message : String(error),
-        chainId,
-        errorDetails: error,
-      })
-    }
+    // Ignore error
   }
 
   // Fallback to UNIVERSAL_ROUTER_ADDRESS if available
@@ -319,42 +286,59 @@ function buildTxRequestFromQuote(
       routerAddress = UNIVERSAL_ROUTER_ADDRESS(UniversalRouterVersion.V1_2, chainId)
       routerSource = 'UNIVERSAL_ROUTER_ADDRESS'
     } catch (error) {
-      if (process.env.NODE_ENV === 'development') {
-        console.error('[Swap] Error: Failed to get router address from UNIVERSAL_ROUTER_ADDRESS', {
-          error: error instanceof Error ? error.message : String(error),
-          chainId,
-        })
-      }
+      // Ignore error
     }
   }
 
+  return { routerAddress, routerSource }
+}
+
+function getGasLimitWithBuffer(
+  gasUseEstimate?: string | number,
+  { multiplier = 1.2 }: { multiplier?: number } = {},
+): string | undefined {
+  if (!gasUseEstimate) {
+    return undefined
+  }
+  try {
+    const gasUseEstimateStr = String(gasUseEstimate)
+    const factor = Math.floor(multiplier * 100)
+    const gasLimitWithBuffer = (BigInt(gasUseEstimateStr) * BigInt(factor)) / BigInt(100)
+    return gasLimitWithBuffer.toString()
+  } catch {
+    return undefined
+  }
+}
+
+function buildTxRequestFromQuote(
+  swapQuote: TradingApi.ClassicQuote | TradingApi.BridgeQuote | undefined,
+  chainId: number,
+): providers.TransactionRequest[] | undefined {
+  // Type assertion: methodParameters exists in ClassicQuote but may not be in type definition
+  const quoteWithMethodParams = swapQuote as (TradingApi.ClassicQuote | TradingApi.BridgeQuote) & {
+    methodParameters?: { calldata: string; value: string }
+  }
+
+  if (!quoteWithMethodParams?.methodParameters) {
+    return undefined
+  }
+
+  const { calldata, value } = quoteWithMethodParams.methodParameters
+
+  if (!calldata) {
+    return undefined
+  }
+
+  const { routerAddress } = getRouterAddressForChain(chainId)
+
   if (!routerAddress) {
     // For HashKey chains (133, 177), they may not use Universal Router
-    // In this case, we need to check if the quote's methodParameters contains a 'to' address
-    // or if the user has configured a custom router address
     if (chainId === 133 || chainId === 177) {
-      if (process.env.NODE_ENV === 'development') {
-        console.error('[Swap] Error: HashKey chain does not have Universal Router configured', {
-          chainId,
-          routerSource,
-          message: 'Please configure the swap router address for HashKey chains in CHAIN_TO_UNIVERSAL_ROUTER_ADDRESS',
-          suggestion: 'Add the HashKey swap router address to constants.ts',
-        })
-      }
       logger.error('HashKey chain does not have Universal Router configured', {
         tags: { file: 'utils.ts', function: 'buildTxRequestFromQuote' },
         extra: { chainId },
       })
-      // Return undefined to indicate that we cannot build the transaction request
-      // The user needs to configure the router address in CHAIN_TO_UNIVERSAL_ROUTER_ADDRESS
       return undefined
-    }
-
-    if (process.env.NODE_ENV === 'development') {
-      console.error('[Swap] Error: Could not determine router address', {
-        chainId,
-        routerSource,
-      })
     }
     logger.error('Could not determine Universal Router address', {
       tags: { file: 'utils.ts', function: 'buildTxRequestFromQuote' },
@@ -378,26 +362,50 @@ function buildTxRequestFromQuote(
   const quoteWithGasEstimate = quoteWithMethodParams as (TradingApi.ClassicQuote | TradingApi.BridgeQuote) & {
     gasUseEstimate?: string | number
   }
-  if (quoteWithGasEstimate && 'gasUseEstimate' in quoteWithGasEstimate && quoteWithGasEstimate.gasUseEstimate) {
-    try {
-      const gasUseEstimateStr = String(quoteWithGasEstimate.gasUseEstimate)
-      // Add 20% buffer: gasLimit = gasUseEstimate * 1.2
-      const gasLimitWithBuffer = (BigInt(gasUseEstimateStr) * BigInt(120)) / BigInt(100)
-      txRequest.gasLimit = gasLimitWithBuffer.toString()
-      
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[Swap] buildTxRequestFromQuote: Set gasLimit from quote', {
-          gasUseEstimate: gasUseEstimateStr,
-          gasLimitWithBuffer: gasLimitWithBuffer.toString(),
-          chainId,
-        })
-      }
-    } catch (error) {
-      // If conversion fails, let prepareTransaction handle it
-      if (process.env.NODE_ENV === 'development') {
-        console.warn('[Swap] Failed to set gasLimit from quote:', error)
-      }
-    }
+  const isHashKey = chainId === UniverseChainId.HashKey || chainId === UniverseChainId.HashKeyTestnet
+  const gasLimitBuffered = getGasLimitWithBuffer(quoteWithGasEstimate.gasUseEstimate, {
+    multiplier: isHashKey ? 1.6 : 1.2,
+  })
+  if (gasLimitBuffered) {
+    txRequest.gasLimit = gasLimitBuffered
+  }
+
+  return [txRequest]
+}
+
+function buildTxRequestFromTrade(
+  trade: ClassicTrade,
+  chainId: number,
+  deadline?: number,
+): providers.TransactionRequest[] | undefined {
+  const { routerAddress } = getRouterAddressForChain(chainId)
+  if (!routerAddress) {
+    return undefined
+  }
+
+  const slippageTolerance = slippageToleranceToPercent(trade.slippageTolerance)
+  const deadlineOrPreviousBlockhash = String(deadline ?? trade.deadline ?? 0)
+  const feeOptions =
+    trade.swapFee?.recipient && trade.swapFee.feeField === CurrencyField.OUTPUT
+      ? { fee: trade.swapFee.percent, recipient: trade.swapFee.recipient }
+      : undefined
+
+  const gasLimitBuffered = getGasLimitWithBuffer((trade as any)?.quote?.quote?.gasUseEstimate, {
+    multiplier: chainId === UniverseChainId.HashKey || chainId === UniverseChainId.HashKeyTestnet ? 1.6 : 1.2,
+  })
+
+  const { calldata, value } = V3SwapRouter.swapCallParameters(trade, {
+    slippageTolerance,
+    deadlineOrPreviousBlockhash,
+    fee: feeOptions,
+  })
+
+  const txRequest: providers.TransactionRequest = {
+    to: routerAddress,
+    data: calldata,
+    value: value && value !== '0x00' ? value : undefined,
+    chainId,
+    ...(gasLimitBuffered ? { gasLimit: gasLimitBuffered } : {}),
   }
 
   return [txRequest]
@@ -408,6 +416,7 @@ export function createProcessSwapResponse({ gasStrategy }: { gasStrategy: GasStr
     response,
     error,
     swapQuote,
+    trade,
     isSwapLoading,
     permitData,
     swapRequestParams,
@@ -418,6 +427,7 @@ export function createProcessSwapResponse({ gasStrategy }: { gasStrategy: GasStr
     response: SwapData | undefined
     error: Error | null
     swapQuote: TradingApi.ClassicQuote | TradingApi.BridgeQuote | undefined
+    trade?: ClassicTrade
     isSwapLoading: boolean
     permitData: TradingApi.NullablePermit | undefined
     swapRequestParams: TradingApi.CreateSwapRequest | undefined
@@ -448,9 +458,9 @@ export function createProcessSwapResponse({ gasStrategy }: { gasStrategy: GasStr
     finalChainId = 133 // UniverseChainId.HashKeyTestnet
   }
 
-  // We use the gasFee estimate from quote, as its more accurate
-  // Calculate gasFee from quote response (either directly from gasFee or from gasPriceWei * gasUseEstimate)
-  const swapGasFee = getGasFeeFromQuote(swapQuote, gasStrategy)
+    // We use the gasFee estimate from quote, as its more accurate
+    // Calculate gasFee from quote response (either directly from gasFee or from gasPriceWei * gasUseEstimate)
+    const swapGasFee = getGasFeeFromQuote(swapQuote, gasStrategy)
 
     // This is a case where simulation fails on backend, meaning txn is expected to fail
     const simulationError = getSimulationError({ swapQuote, isRevokeNeeded })
@@ -484,10 +494,20 @@ export function createProcessSwapResponse({ gasStrategy }: { gasStrategy: GasStr
       swapEstimate: response?.gasEstimate,
     }
 
+    const isHashKeyChain = finalChainId === UniverseChainId.HashKey || finalChainId === UniverseChainId.HashKeyTestnet
+
     // Use swap API transactions if available, otherwise build from quote methodParameters
     let txRequests: providers.TransactionRequest[] | undefined
 
-    if (response?.transactions) {
+    if (isHashKeyChain && trade) {
+      txRequests = buildTxRequestFromTrade(trade, finalChainId, swapRequestParams?.deadline)
+      if (!txRequests) {
+        logger.error('HashKey chain failed to build SwapRouter02 txRequest from trade', {
+          tags: { file: 'utils.ts', function: 'processSwapResponse' },
+          extra: { chainId: finalChainId },
+        })
+      }
+    } else if (response?.transactions) {
       txRequests = response.transactions
     } else if (finalChainId && swapQuote) {
       txRequests = buildTxRequestFromQuote(swapQuote, finalChainId)
@@ -519,18 +539,6 @@ export function createProcessSwapResponse({ gasStrategy }: { gasStrategy: GasStr
       // But if it does, we should still try to build with finalChainId
       if (finalChainId && swapQuote) {
         txRequests = buildTxRequestFromQuote(swapQuote, finalChainId)
-      } else {
-        if (process.env.NODE_ENV === 'development') {
-          console.error('[Swap] Error: Cannot build transaction requests - missing required data', {
-            hasResponseTransactions: !!response?.transactions,
-            hasChainId: !!chainId,
-            hasFinalChainId: !!finalChainId,
-            hasSwapQuote: !!swapQuote,
-            chainId,
-            finalChainId,
-            swapQuoteKeys: swapQuote ? Object.keys(swapQuote) : undefined,
-          })
-        }
       }
     }
 

@@ -165,13 +165,6 @@ export function useCreateSwapReviewCallbacks(ctx: {
       return
     }
 
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[Swap] Starting swap execution...', {
-        trade: swapParams.trade,
-        chainId: swapParams.derivedSwapInfo.chainId,
-      })
-    }
-
     // Ensure we have fresh transaction data before executing the swap.
     // We need this because we allow the user to click `Submit` when a new `/quote` response is being displayed in the UI
     // even though we might still not have the corresponding `/swap` response for that `/quote`.
@@ -200,13 +193,6 @@ export function useCreateSwapReviewCallbacks(ctx: {
       // If we fail to get fresh data, show error and don't proceed with swap
       onFailure(wrappedError)
       return
-    }
-
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[Swap] Transaction data prepared, executing swap...', {
-        txRequests: freshSwapTxData.txRequests,
-        gasEstimate: freshSwapTxData.gasFeeEstimation,
-      })
     }
 
     const executeSwapService = getExecuteSwapService({

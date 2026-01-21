@@ -28,16 +28,9 @@ export async function handleSwitchChains(params: {
   }
 
   try {
-    const chainSwitched = await selectChain(swapChainId)
-    return { chainSwitchFailed: !chainSwitched }
+  const chainSwitched = await selectChain(swapChainId)
+  return { chainSwitchFailed: !chainSwitched }
   } catch (error) {
-    if (process.env.NODE_ENV === 'development') {
-      console.error('[Swap] Error: selectChain threw error', {
-        error: error instanceof Error ? error.message : String(error),
-        fromChainId: startChainId,
-        toChainId: swapChainId,
-      })
-    }
     return { chainSwitchFailed: true }
   }
 }

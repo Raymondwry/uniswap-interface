@@ -502,7 +502,7 @@ export function createExecuteSwapSaga(
 
       // Call onSuccess after transaction is successfully submitted
       // For delayed submission, onSuccess will be called after all transactions are submitted
-      yield* call(onSuccess)
+        yield* call(onSuccess)
     } catch (error) {
       dependencies.logger.error(error, {
         tags: { file: 'executeSwapSaga', function: 'executeSwap' },
