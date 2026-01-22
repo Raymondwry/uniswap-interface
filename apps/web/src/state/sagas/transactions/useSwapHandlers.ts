@@ -61,7 +61,9 @@ export function useSwapHandlers(): SwapHandlers {
       } = params
 
       // Route to appropriate callback based on transaction type
-      if (isWrap(swapTxContext)) {
+      const isWrapFlow = isWrap(swapTxContext)
+
+      if (isWrapFlow) {
         // Handle wrap transactions
         try {
           const { inputCurrencyAmount, wrapType } = validateWrapParams(params)
@@ -84,23 +86,23 @@ export function useSwapHandlers(): SwapHandlers {
       } else {
         // Handle regular swap transactions
         try {
-        swapCallback({
-          account,
-          swapTxContext,
-          currencyInAmountUSD,
-          currencyOutAmountUSD,
-          isAutoSlippage,
-          presetPercentage,
-          preselectAsset,
-          onSuccess,
-          onFailure,
-          onPending,
-          txId,
-          setCurrentStep,
-          setSteps,
-          isFiatInputMode,
-          includesDelegation: swapTxContext.includesDelegation,
-        })
+          swapCallback({
+            account,
+            swapTxContext,
+            currencyInAmountUSD,
+            currencyOutAmountUSD,
+            isAutoSlippage,
+            presetPercentage,
+            preselectAsset,
+            onSuccess,
+            onFailure,
+            onPending,
+            txId,
+            setCurrentStep,
+            setSteps,
+            isFiatInputMode,
+            includesDelegation: swapTxContext.includesDelegation,
+          })
         } catch (error) {
           onFailure(error instanceof Error ? error : new Error(String(error)))
         }

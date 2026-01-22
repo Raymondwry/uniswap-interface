@@ -14,7 +14,6 @@ import {
 import { orderUniswapXSteps } from 'uniswap/src/features/transactions/swap/steps/uniswapxSteps'
 import { isValidSwapTxContext, SwapTxAndGasInfo } from 'uniswap/src/features/transactions/swap/types/swapTxAndGasInfo'
 import { isBridge, isClassic, isUniswapX } from 'uniswap/src/features/transactions/swap/utils/routing'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import type { ValidatedTransactionRequest } from 'uniswap/src/features/transactions/types/transactionRequests'
 
 function buildHashKeyApprovalTxRequest({

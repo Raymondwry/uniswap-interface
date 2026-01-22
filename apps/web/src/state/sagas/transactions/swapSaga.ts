@@ -61,6 +61,7 @@ import { PermitMethod, ValidatedSwapTxContext } from 'uniswap/src/features/trans
 import { BridgeTrade, ChainedActionTrade, ClassicTrade } from 'uniswap/src/features/transactions/swap/types/trade'
 import { slippageToleranceToPercent } from 'uniswap/src/features/transactions/swap/utils/format'
 import { generateSwapTransactionSteps } from 'uniswap/src/features/transactions/swap/utils/generateSwapTransactionSteps'
+import { createApprovalTransactionStep } from 'uniswap/src/features/transactions/steps/approve'
 import {
   isClassic,
   isJupiter,
@@ -73,6 +74,7 @@ import {
   isSignerMnemonicAccountDetails,
   SignerMnemonicAccountDetails,
 } from 'uniswap/src/features/wallet/types/AccountDetails'
+import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { createSaga } from 'uniswap/src/utils/saga'
 import { logger } from 'utilities/src/logger/logger'
 import { useTrace } from 'utilities/src/telemetry/trace/TraceContext'
@@ -535,7 +537,21 @@ function* swap(params: SwapParams) {
   }
 
   const steps = yield* call(generateSwapTransactionSteps, swapTxContext, v4Enabled)
-  setSteps(steps)
+  const isHashKeyChain =
+    swapChainId === UniverseChainId.HashKey || swapChainId === UniverseChainId.HashKeyTestnet
+  const approvalStep =
+    isHashKeyChain && swapTxContext.approveTxRequest
+      ? createApprovalTransactionStep({
+          txRequest: swapTxContext.approveTxRequest,
+          amount: swapTxContext.trade.inputAmount.quotient.toString(),
+          tokenAddress: swapTxContext.trade.inputAmount.currency.wrapped.address,
+          chainId: swapChainId,
+        })
+      : undefined
+  const stepsWithoutApproval = approvalStep
+    ? steps.filter((step) => step.type !== TransactionStepType.TokenApprovalTransaction)
+    : steps
+  setSteps(approvalStep ? [approvalStep, ...stepsWithoutApproval] : steps)
 
   let signature: string | undefined
   let step: TransactionStep | undefined
@@ -548,7 +564,15 @@ function* swap(params: SwapParams) {
       return
     }
 
-    for (step of steps) {
+    if (approvalStep) {
+      try {
+        yield* call(handleApprovalTransactionStep, { address: account.address, step: approvalStep, setCurrentStep })
+      } catch (error) {
+        throw error
+      }
+    }
+
+    for (step of stepsWithoutApproval) {
       switch (step.type) {
         case TransactionStepType.TokenRevocationTransaction:
         case TransactionStepType.TokenApprovalTransaction: {

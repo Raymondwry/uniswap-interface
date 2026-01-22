@@ -522,6 +522,17 @@ export function createProcessSwapResponse({ gasStrategy }: { gasStrategy: GasStr
       }
     }
 
+    // HashKey does not provide reliable gas simulation via backend; allow swap flow to proceed.
+    if (isHashKeyChain) {
+      if (gasFeeResult.value === undefined) {
+        gasFeeResult.value = '0'
+        gasFeeResult.displayValue = '0'
+      }
+      if (gasFeeResult.error) {
+        gasFeeResult.error = null
+      }
+    }
+
     return {
       gasFeeResult,
       txRequests,
