@@ -347,6 +347,15 @@ export default defineConfig(({ mode }) => {
 
     server: {
       port: DEFAULT_PORT,
+      host: '0.0.0.0',
+      allowedHosts: 'all',
+      hmr: {
+        host: '10.225.81.22',
+        port: 8888,
+        clientPort: 8888,
+        protocol: 'ws',
+      },
+      strictPort: false, // 如果端口被占用，自动尝试下一个可用端口
       proxy: {
         ...(ENABLE_PROXY ? {
           '/entry-gateway': createEntryGatewayProxy({ getLogger })

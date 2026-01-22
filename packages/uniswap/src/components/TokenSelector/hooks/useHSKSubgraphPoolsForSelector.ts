@@ -1,12 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
+import { getHSKSubgraphUrl } from 'uniswap/src/constants/subgraphUrl'
 import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { toGraphQLChain } from 'uniswap/src/features/chains/utils'
 
-// 使用代理 URL 避免 CORS 问题
-const SUBGRAPH_URL =
-  typeof window !== 'undefined' && window.location.hostname === 'localhost'
-    ? '/hsk-subgraph' // 开发环境：使用 Vite 代理
-    : 'https://graphnode-testnet.hashkeychain.net/subgraphs/name/uniswap-v3/hsk-test' // 生产环境：直接请求
+// 使用统一的 subgraph URL 获取函数，支持环境变量和内网访问
+const SUBGRAPH_URL = getHSKSubgraphUrl()
 
 interface SubgraphPool {
   id: string
