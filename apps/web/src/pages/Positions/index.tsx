@@ -83,7 +83,7 @@ function DisconnectedWalletView() {
               size="small"
               emphasis="secondary"
               tag="a"
-              href="/positions/create/v4"
+              href="/positions/create/v3"
               $platform-web={{
                 textDecoration: 'none',
               }}
@@ -157,7 +157,7 @@ function EmptyPositionsView() {
             variant="default"
             size="small"
             tag="a"
-            href="/positions/create/v4"
+            href="/positions/create/v3"
             $platform-web={{
               textDecoration: 'none',
             }}
@@ -208,8 +208,9 @@ function LearnMoreTile({
   )
 }
 
-const chainFilterAtom = atom<UniverseChainId | null>(null)
-const versionFilterAtom = atom<ProtocolVersion[]>([ProtocolVersion.V4, ProtocolVersion.V3, ProtocolVersion.V2])
+// 本期只做 V3 基础添加流动性 - 默认筛选 HashKey Chain + V3
+const chainFilterAtom = atom<UniverseChainId | null>(UniverseChainId.HashKey)
+const versionFilterAtom = atom<ProtocolVersion[]>([ProtocolVersion.V3])
 const statusFilterAtom = atom<PositionStatus[]>([PositionStatus.IN_RANGE, PositionStatus.OUT_OF_RANGE])
 
 function VirtualizedPositionsList({
@@ -257,7 +258,7 @@ function VirtualizedPositionsList({
                 <LiquidityPositionCard
                   showVisibilityOption
                   liquidityPosition={position}
-                  showMigrateButton
+                  // showMigrateButton // 注释掉迁移按钮 - 本期不做迁移功能
                   isLast={index === positions.length - 1}
                 />
               </Link>
@@ -488,7 +489,8 @@ export default function Pool() {
               <CloseIconWithHover onClose={() => setClosedCTADismissed(true)} size="$icon.20" />
             </Flex>
           )} */}
-          {isConnected && (
+          {/* 注释掉 Pool Finder 入口 - 本期只做基础添加流动性 */}
+          {/* {isConnected && (
             <Flex row centered $sm={{ flexDirection: 'column', alignItems: 'flex-start' }} mb="$spacing24" gap="$gap4">
               <Text variant="body3" color="$neutral2">
                 {t('pool.import.link.description')}
@@ -499,7 +501,7 @@ export default function Pool() {
                 </Text>
               </Anchor>
             </Flex>
-          )}
+          )} */}
         </Flex>
         <Flex gap="$gap32">
           <TopPools chainId={chainFilter} />

@@ -24,7 +24,8 @@ import { assume0xAddress } from 'utils/wagmi'
 // Parser for replace parameters (most params)
 const replaceStateParser = {
   // Currency addresses
-  currencyA: parseAsCurrencyAddress.withDefault(''),
+  // Default currencyA to NATIVE (HSK) for HashKey Chain
+  currencyA: parseAsCurrencyAddress.withDefault(NATIVE_CHAIN_ID),
   currencyB: parseAsCurrencyAddress.withDefault(''),
 
   // Chain
