@@ -273,11 +273,15 @@ function* submitTransaction(params: HandleOnChainStepParams): SagaGenerator<Vita
     const response = yield* call([signer, 'sendTransaction'], step.txRequest)
     return transformTransactionResponse(response)
   } catch (error) {
-          gasLimit: step.txRequest.gasLimit,
-          dataLength: step.txRequest.data?.length,
-        } : undefined,
-      })
-    }
+    addTransactionBreadcrumb({
+      step,
+      data: {
+        error: error instanceof Error ? error.message : String(error),
+        gasLimit: step.txRequest.gasLimit,
+        dataLength: step.txRequest.data?.length,
+      },
+      status: TransactionBreadcrumbStatus.Interrupted,
+    })
     if (error && typeof error === 'object' && 'transactionHash' in error && isValidHexString(error.transactionHash)) {
       return yield* recoverTransactionFromHash(error.transactionHash, step)
     }
