@@ -29,22 +29,6 @@ const QuoteFetchClient = createUniswapFetchClient({
   additionalHeaders: quoteApiHeaders,
 })
 
-// Debug: Log Trading API configuration (quoteUrlPath will be defined later)
-if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
-  const debugQuoteUrlPath = tradingApiVersionPrefix
-    ? `${tradingApiVersionPrefix}/${TRADING_API_PATHS.quote}`
-    : `/${TRADING_API_PATHS.quote}`
-  console.log('[TradingApiClient] Base URL:', uniswapUrls.tradingApiUrl)
-  console.log('[TradingApiClient] Quote API Base URL:', quoteApiBaseUrl)
-  console.log('[TradingApiClient] API Path Prefix:', tradingApiVersionPrefix)
-  console.log('[TradingApiClient] Quote URL Path:', debugQuoteUrlPath)
-  console.log('[TradingApiClient] Full Quote URL:', `${quoteApiBaseUrl}${debugQuoteUrlPath}`)
-  console.log(
-    '[TradingApiClient] Trading API Key:',
-    config.tradingApiKey ? '***' : '(empty - no API key header will be sent)',
-  )
-  console.log('[TradingApiClient] Quote API Headers:', quoteApiHeaders)
-}
 
 /**
  * Helper to add a header only if enabled.
@@ -188,16 +172,6 @@ const transformQuoteRequest = async (request: {
     tokenOutChainId: typeof params.tokenOutChainId === 'string' ? parseInt(params.tokenOutChainId, 10) : params.tokenOutChainId,
   }
 
-  if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
-    console.log('[TradingApiClient] Request params:', {
-      tokenInChainId: transformedParams.tokenInChainId,
-      tokenOutChainId: transformedParams.tokenOutChainId,
-      tokenInChainIdType: typeof transformedParams.tokenInChainId,
-      tokenOutChainIdType: typeof transformedParams.tokenOutChainId,
-      hasGasStrategies: !!transformedParams.gasStrategies,
-    })
-  }
-
   return {
     headers: getFeatureFlaggedHeaders(TRADING_API_PATHS.quote),
     params: transformedParams,
@@ -210,16 +184,7 @@ const customFetchQuote = createFetcher<QuoteRequest & { isUSDQuote?: boolean }, 
   method: 'post',
   transformRequest: transformQuoteRequest,
   on404: (params: QuoteRequest & { isUSDQuote?: boolean }) => {
-    // Use the logger from the default client if available
-    if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
-      console.warn('[TradingApiClient] Quote 404', {
-        chainIdIn: params.tokenInChainId,
-        chainIdOut: params.tokenOutChainId,
-        tradeType: params.type,
-        isBridging: params.tokenInChainId !== params.tokenOutChainId,
-        url: `${quoteApiBaseUrl}${quoteUrlPath}`,
-      })
-    }
+    // 404 handler - no logging needed
   },
 })
 
@@ -228,25 +193,8 @@ const customFetchQuoteWithErrorHandling = async (
   params: QuoteRequest & { isUSDQuote?: boolean },
 ): Promise<DiscriminatedQuoteResponse> => {
   try {
-    if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
-      console.log('[TradingApiClient] Fetching quote (original request):', {
-        url: `${quoteApiBaseUrl}${quoteUrlPath}`,
-        chainIdIn: params.tokenInChainId,
-        chainIdOut: params.tokenOutChainId,
-        requestBody: JSON.stringify(params, null, 2),
-      })
-      console.log('[TradingApiClient] Note: Request will be transformed by transformQuoteRequest before sending')
-    }
     return await customFetchQuote(params)
   } catch (error) {
-    if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
-      console.error('[TradingApiClient] Quote fetch error:', error, {
-        url: `${quoteApiBaseUrl}${quoteUrlPath}`,
-        chainIdIn: params.tokenInChainId,
-        chainIdOut: params.tokenOutChainId,
-        originalRequestBody: JSON.stringify(params, null, 2),
-      })
-    }
     throw error
   }
 }

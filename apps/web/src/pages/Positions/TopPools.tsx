@@ -31,21 +31,11 @@ export function TopPools({ chainId }: { chainId: UniverseChainId | null }) {
     error: hskPoolsError,
   } = useHSKSubgraphPools(1000) // 获取足够多的 pools（1000 应该足够覆盖所有 pools）
 
-  // 调试信息
-  console.log('[TopPools] HSK Subgraph 数据:', {
-    hskPools,
-    hskPoolsLoading,
-    hskPoolsError,
-    poolsCount: hskPools?.length,
-  })
-
   // 按 TVL 排序 pools
   const sortedHSKPools = useMemo(() => {
     if (!hskPools) {
-      console.log('[TopPools] hskPools 为空')
       return []
     }
-    console.log('[TopPools] 开始排序，pools 数量:', hskPools.length)
     const sorted = [...hskPools].sort((a, b) => {
       // totalLiquidity.value 是 number 类型
       const tvlA = typeof a.totalLiquidity?.value === 'number' 
@@ -55,35 +45,6 @@ export function TopPools({ chainId }: { chainId: UniverseChainId | null }) {
         ? b.totalLiquidity.value
         : parseFloat(String(b.totalLiquidity?.value || '0'))
       return tvlB - tvlA
-    })
-    console.log('[TopPools] 排序后的 pools (前6个):', sorted.slice(0, 6).map(p => ({
-      id: p.id,
-      token0: p.token0?.symbol,
-      token1: p.token1?.symbol,
-      tvl: p.totalLiquidity?.value
-    })))
-    // 输出所有 pools 的完整数据
-    console.log('[TopPools] 所有 pools 数据 (完整):', {
-      totalCount: sorted.length,
-      allPools: sorted.map(p => ({
-        id: p.id,
-        address: p.address,
-        token0: {
-          symbol: p.token0?.symbol,
-          name: p.token0?.name,
-          address: p.token0?.address,
-        },
-        token1: {
-          symbol: p.token1?.symbol,
-          name: p.token1?.name,
-          address: p.token1?.address,
-        },
-        totalLiquidity: p.totalLiquidity?.value,
-        feeTier: p.feeTier,
-        volume24h: p.volume24h?.value,
-        volume30d: p.volume30d?.value,
-        txCount: p.txCount,
-      }))
     })
     return sorted
   }, [hskPools])
@@ -113,16 +74,6 @@ export function TopPools({ chainId }: { chainId: UniverseChainId | null }) {
   // 屏蔽 boosted pools（因为我们已经屏蔽了原有的 explore stats）
   const displayBoostedPools = false // HSK Subgraph 数据不包含 boosted pools
   const displayTopPools = topPools && topPools.length > 0
-
-  // 调试信息
-  console.log('[TopPools] 渲染状态:', {
-    isBelowXlScreen,
-    topPoolsLength: topPools?.length,
-    displayTopPools,
-    isLoading,
-    hasError,
-    media: media,
-  })
 
   // 临时：即使屏幕很大也显示，用于调试
   // if (!isBelowXlScreen) {

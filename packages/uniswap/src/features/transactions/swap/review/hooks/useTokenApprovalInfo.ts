@@ -112,33 +112,6 @@ export function useTokenApprovalInfo(params: TokenApprovalInfoParams): ApprovalT
     immediateGcTime: ONE_MINUTE_MS,
   })
 
-  // Debug logging for allowance check
-  if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
-    if (!isLoading && (data !== undefined || error)) {
-      console.log('[allowance] useTokenApprovalInfo check result:', {
-        shouldSkip,
-        skipReasons: {
-          noApprovalRequestArgs: !approvalRequestArgs,
-          isWrap,
-          noAddress: !address,
-          approvalWillBeBatchedWithSwap,
-          isChained,
-        },
-        approvalWillBeBatchedWithSwap,
-        chainId,
-        routing,
-        data: data ? { approval: data.approval !== null, hasCancel: !!data.cancel } : undefined,
-        error: error ? String(error) : undefined,
-        approvalRequestArgs: approvalRequestArgs
-          ? {
-              token: approvalRequestArgs.token,
-              amount: approvalRequestArgs.amount,
-              chainId: approvalRequestArgs.chainId,
-            }
-          : undefined,
-      })
-    }
-  }
 
   const tokenApprovalInfo: TokenApprovalInfo = useMemo(() => {
     if (error) {
@@ -148,17 +121,6 @@ export function useTokenApprovalInfo(params: TokenApprovalInfoParams): ApprovalT
           approvalRequestArgs,
         },
       })
-      
-      // Debug: Log error details
-      if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
-        console.error('[allowance] API error - returning ApprovalAction.Unknown:', {
-          error: String(error),
-          errorType: error?.constructor?.name,
-          errorMessage: error instanceof Error ? error.message : String(error),
-          approvalRequestArgs,
-          willBlockTransaction: true,
-        })
-      }
     }
 
     // Approval is N/A for wrap transactions or unconnected state.

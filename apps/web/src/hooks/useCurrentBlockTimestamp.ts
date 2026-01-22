@@ -89,37 +89,5 @@ export default function useCurrentBlockTimestamp({
   // Use Multicall result if available, otherwise fallback to useBlock
   const blockTimestamp = result.data ?? (blockData.data?.timestamp ? BigInt(blockData.data.timestamp) : undefined)
 
-  if (process.env.NODE_ENV === 'development') {
-    // 获取 RPC URL 信息用于调试
-    const rpcConfig = selectRpcUrl(chainId, RPCType.Public)
-    const rpcUrl = rpcConfig?.rpcUrl || 'N/A'
-
-    console.log('[swap debug] useCurrentBlockTimestamp - Query result:', {
-      chainId,
-      rpcUrl,
-      multicallAddress,
-      hasData: !!result.data,
-      data: result.data?.toString(),
-      isLoading: result.isLoading,
-      isError: result.isError,
-      error: result.error?.message,
-      shouldUseFallback,
-      hasBlockNumber: !!blockNumber,
-      blockNumberLoading: blockNumberQuery.isLoading,
-      blockNumberError: blockNumberQuery.isError,
-      fallbackBlockNumber: blockNumber?.toString(),
-      fallbackDataLoading: blockData.isLoading,
-      fallbackDataError: blockData.isError,
-      fallbackTimestamp: blockData.data?.timestamp?.toString(),
-      usingFallback: shouldUseFallback && !!blockData.data?.timestamp,
-      blockTimestamp: blockTimestamp ? {
-        value: blockTimestamp.toString(),
-        hex: '0x' + blockTimestamp.toString(16),
-        date: new Date(Number(blockTimestamp) * 1000).toLocaleString('zh-CN'),
-        source: result.data ? 'multicall' : 'useBlock',
-      } : undefined,
-    })
-  }
-
   return blockTimestamp
 }

@@ -49,16 +49,6 @@ export function createGetEVMSwapTransactionRequestInfo(ctx: {
 
     const skip = getSwapInputExceedsBalance({ derivedSwapInfo }) || approvalUnknown
 
-    // Debug logging for approval unknown case
-    if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development' && approvalUnknown) {
-      console.warn('[allowance] ApprovalAction.Unknown - skipping swap instructions:', {
-        approvalAction,
-        skip,
-        balanceExceeds: getSwapInputExceedsBalance({ derivedSwapInfo }),
-        note: 'This should block the transaction, but swapRequestParams will still be prepared',
-      })
-    }
-
     // Always prepare swapRequestParams, even if skip is true, so deadline is preserved
     const alreadyApproved = approvalAction === ApprovalAction.None && !swapQuoteResponse.permitTransaction
     const swapRequestParams = prepareSwapRequestParams({

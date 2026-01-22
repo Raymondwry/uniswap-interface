@@ -127,12 +127,7 @@ export function useUniversalRouterSwapCallback({
         try {
           routerAddress ??= UNIVERSAL_ROUTER_ADDRESS(UniversalRouterVersion.V1_2, chainId)
         } catch (error) {
-          if (process.env.NODE_ENV === 'development') {
-            console.error('[Swap] Error: Failed to get router address', {
-              error: error instanceof Error ? error.message : String(error),
-              chainId,
-            })
-          }
+          // Router address lookup failed
           throw new Error(
             `Failed to get router address for chain ${chainId}: ${error instanceof Error ? error.message : String(error)}`,
           )

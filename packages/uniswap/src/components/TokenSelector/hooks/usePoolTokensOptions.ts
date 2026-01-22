@@ -93,20 +93,8 @@ export function usePoolTokensOptions(
         }
       } catch (error) {
         // Skip invalid tokens
-        if (typeof window !== 'undefined') {
-          console.warn('[usePoolTokensOptions] Failed to build currency for token:', token, error)
-        }
       }
     })
-
-    // Debug log
-    if (typeof window !== 'undefined') {
-      console.log('[usePoolTokensOptions] Debug:', {
-        uniqueTokens: uniqueTokens.length,
-        currencyInfos: infos.length,
-        chainId,
-      })
-    }
 
     return infos
   }, [uniqueTokens, chainId])
@@ -114,13 +102,6 @@ export function usePoolTokensOptions(
   // Convert to TokenOptions (same format as recent searches)
   const tokenOptions = useMemo(() => {
     const options = currencyInfosToTokenOptions(currencyInfos) ?? []
-    // Debug log
-    if (typeof window !== 'undefined') {
-      console.log('[usePoolTokensOptions] TokenOptions:', {
-        currencyInfos: currencyInfos.length,
-        tokenOptions: options.length,
-      })
-    }
     return options
   }, [currencyInfos])
 

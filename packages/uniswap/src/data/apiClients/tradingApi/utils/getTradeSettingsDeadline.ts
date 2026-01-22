@@ -16,21 +16,5 @@ export const getTradeSettingsDeadline = (
   
   const deadline = baseTimestamp + deadlineSeconds
 
-  if (process.env.NODE_ENV === 'development') {
-    console.log('[swap debug] getTradeSettingsDeadline:', {
-      customDeadline,
-      usingDefault: customDeadline === undefined,
-      defaultDeadline: DEFAULT_CUSTOM_DEADLINE,
-      deadlineMinutes,
-      deadlineSeconds,
-      blockTimestamp: blockTimestamp?.toString(),
-      baseTimestamp,
-      deadline,
-      deadlineDate: new Date(deadline * 1000).toLocaleString('zh-CN'),
-      currentTime: new Date().toLocaleString('zh-CN'),
-      usingBlockTimestamp: !!blockTimestamp,
-    })
-  }
-
   return deadline
 }
