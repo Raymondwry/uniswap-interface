@@ -101,16 +101,6 @@ function useSwapTransactionRequestInfo({
   // Only fetch on web app (where useCurrentBlockTimestamp is available)
   const blockTimestamp = isWebApp && useCurrentBlockTimestamp ? useCurrentBlockTimestamp() : undefined
 
-  if (process.env.NODE_ENV === 'development') {
-    console.log('[swap debug] useTransactionRequestInfo - Preparing swap request params:', {
-      customDeadline: transactionSettings.customDeadline,
-      hasSwapQuoteResponse: !!swapQuoteResponse,
-      alreadyApproved: tokenApprovalInfo?.action === ApprovalAction.None && !swapQuoteResponse?.permitTransaction,
-      overrideSimulation,
-      blockTimestamp: blockTimestamp?.toString(),
-      usingBlockTimestamp: !!blockTimestamp,
-    })
-  }
 
   const prepareSwapRequestParams = useMemo(() => createPrepareSwapRequestParams({ gasStrategy }), [gasStrategy])
 

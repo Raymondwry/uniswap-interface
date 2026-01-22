@@ -49,13 +49,13 @@ export function createGetEVMSwapTransactionRequestInfo(ctx: {
 
     const skip = getSwapInputExceedsBalance({ derivedSwapInfo }) || approvalUnknown
 
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[execute] createGetEVMSwapTransactionRequestInfo - Before getSwapInstructions:', {
-        skip,
+    // Debug logging for approval unknown case
+    if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development' && approvalUnknown) {
+      console.warn('[allowance] ApprovalAction.Unknown - skipping swap instructions:', {
         approvalAction,
-        approvalUnknown,
-        inputExceedsBalance: getSwapInputExceedsBalance({ derivedSwapInfo }),
-        hasInstructionService: !!instructionService,
+        skip,
+        balanceExceeds: getSwapInputExceedsBalance({ derivedSwapInfo }),
+        note: 'This should block the transaction, but swapRequestParams will still be prepared',
       })
     }
 
@@ -68,55 +68,13 @@ export function createGetEVMSwapTransactionRequestInfo(ctx: {
       alreadyApproved,
     })
 
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[execute] createGetEVMSwapTransactionRequestInfo - Prepared swapRequestParams:', {
-        deadline: swapRequestParams.deadline,
-        deadlineDate: swapRequestParams.deadline ? new Date(swapRequestParams.deadline * 1000).toLocaleString('zh-CN') : undefined,
-        hasQuote: !!swapRequestParams.quote,
-        simulateTransaction: swapRequestParams.simulateTransaction,
-      })
-    }
-
     const { data, error } = await tryCatch(
       skip
         ? Promise.resolve(undefined)
         : instructionService.getSwapInstructions({ swapQuoteResponse, transactionSettings, approvalAction }),
     )
 
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[execute] createGetEVMSwapTransactionRequestInfo - After getSwapInstructions:', {
-        hasData: !!data,
-        data: data ? {
-          hasResponse: !!data.response,
-          hasUnsignedPermit: !!data.unsignedPermit,
-          hasSwapRequestParams: !!data.swapRequestParams,
-          swapRequestParams: data.swapRequestParams ? {
-            deadline: data.swapRequestParams.deadline,
-            deadlineDate: data.swapRequestParams.deadline ? new Date(data.swapRequestParams.deadline * 1000).toLocaleString('zh-CN') : undefined,
-            hasQuote: !!data.swapRequestParams.quote,
-            simulateTransaction: data.swapRequestParams.simulateTransaction,
-          } : 'swapRequestParams is undefined',
-        } : 'data is undefined',
-        hasError: !!error,
-        error: error?.message,
-      })
-    }
-
     const isRevokeNeeded = tokenApprovalInfo.action === ApprovalAction.RevokeAndPermit2Approve
-    
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[execute] createGetEVMSwapTransactionRequestInfo - Before processSwapResponse:', {
-        hasResponse: !!data?.response,
-        hasSwapRequestParams: !!data?.swapRequestParams,
-        swapRequestParams: data?.swapRequestParams ? {
-          deadline: data.swapRequestParams.deadline,
-          deadlineDate: data.swapRequestParams.deadline ? new Date(data.swapRequestParams.deadline * 1000).toLocaleString('zh-CN') : undefined,
-          hasQuote: !!data.swapRequestParams.quote,
-          simulateTransaction: data.swapRequestParams.simulateTransaction,
-        } : 'swapRequestParams is undefined',
-        hasUnsignedPermit: !!data?.unsignedPermit,
-      })
-    }
 
     // Use swapRequestParams from data if available, otherwise use the one we prepared
     const finalSwapRequestParams = data?.swapRequestParams ?? swapRequestParams
@@ -131,18 +89,6 @@ export function createGetEVMSwapTransactionRequestInfo(ctx: {
       isRevokeNeeded,
       swapRequestParams: finalSwapRequestParams,
     })
-
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[execute] createGetEVMSwapTransactionRequestInfo - After processSwapResponse:', {
-        hasSwapRequestArgs: !!swapTxInfo.swapRequestArgs,
-        swapRequestArgs: swapTxInfo.swapRequestArgs ? {
-          deadline: swapTxInfo.swapRequestArgs.deadline,
-          deadlineDate: swapTxInfo.swapRequestArgs.deadline ? new Date(swapTxInfo.swapRequestArgs.deadline * 1000).toLocaleString('zh-CN') : undefined,
-          hasQuote: !!swapTxInfo.swapRequestArgs.quote,
-          simulateTransaction: swapTxInfo.swapRequestArgs.simulateTransaction,
-        } : 'swapRequestArgs is undefined',
-      })
-    }
 
     return swapTxInfo
   }

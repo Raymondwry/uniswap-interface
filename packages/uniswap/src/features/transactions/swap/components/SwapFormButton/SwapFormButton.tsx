@@ -137,13 +137,6 @@ export function SwapFormButton({ tokenColor }: { tokenColor?: string }): JSX.Ele
 
   // Create callbacks for swap execution
   const onSuccess = useCallback(() => {
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[Swap Result] Swap succeeded!', {
-        chainId: derivedSwapInfo.chainId,
-        inputCurrency: derivedSwapInfo.currencies.input?.currency.symbol,
-        outputCurrency: derivedSwapInfo.currencies.output?.currency.symbol,
-      })
-    }
     // For Unichain networks, trigger confirmation and branch to stall+fetch logic (ie handle in component)
     if (isFlashblocksEnabled && shouldShowConfirmedState) {
       updateSwapForm({
@@ -172,11 +165,6 @@ export function SwapFormButton({ tokenColor }: { tokenColor?: string }): JSX.Ele
 
   const onFailure = useCallback(
     (error?: Error) => {
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[Swap Result] Swap failed:', {
-          error: error?.message || 'Unknown error',
-        })
-      }
       updateSwapForm({ isSubmitting: false, isConfirmed: false, showPendingUI: false })
     },
     [updateSwapForm],
@@ -267,9 +255,6 @@ export function SwapFormButton({ tokenColor }: { tokenColor?: string }): JSX.Ele
   })
 
   const handleConfirmSwap = useEvent(() => {
-    if (process.env.NODE_ENV === 'development') {
-      console.log('swap tokens now')
-    }
     setIsSwapConfirmationModalOpen(false)
     // Use prepareSwapDirectly which will execute swap directly if no warnings
     // If there are warnings, they will be shown, otherwise swap will execute

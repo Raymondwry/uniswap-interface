@@ -181,26 +181,11 @@ export function useHSKSubgraphPools(first: number = 10) {
   return useQuery({
     queryKey: ['hsk-subgraph-pools', first],
     queryFn: async () => {
-      console.log('[useHSKSubgraphPools] 开始查询 subgraph...')
       try {
         const data = await querySubgraph(TOP_POOLS_QUERY, { first })
-        console.log('[useHSKSubgraphPools] 查询成功，原始 pools 数量:', data.pools.length)
         const converted = data.pools.map(convertSubgraphPoolToPoolStat)
-        console.log('[useHSKSubgraphPools] 转换后的 pools 数量:', converted.length)
-        console.log(
-          '[useHSKSubgraphPools] 转换后的第一个 pool:',
-          converted[0]
-            ? {
-                id: converted[0].id,
-                token0: converted[0].token0,
-                token1: converted[0].token1,
-                totalLiquidity: converted[0].totalLiquidity,
-              }
-            : null,
-        )
         return converted
       } catch (error) {
-        console.error('[useHSKSubgraphPools] 查询失败:', error)
         throw error
       }
     },

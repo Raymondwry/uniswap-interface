@@ -512,27 +512,7 @@ export function createProcessSwapResponse({ gasStrategy }: { gasStrategy: GasStr
     } else if (finalChainId && swapQuote) {
       txRequests = buildTxRequestFromQuote(swapQuote, finalChainId)
       if (!txRequests) {
-        if (process.env.NODE_ENV === 'development') {
-          console.error('[Swap] Error: Failed to build transaction requests from quote', {
-            chainId: finalChainId,
-            originalChainId: chainId,
-            hasSwapQuote: !!swapQuote,
-            hasMethodParameters: !!(swapQuote as any)?.methodParameters,
-            methodParameters: (() => {
-              const methodParams = (swapQuote as any)?.methodParameters
-              if (methodParams) {
-                return {
-                  hasCalldata: !!methodParams.calldata,
-                  hasValue: !!methodParams.value,
-                  calldata: methodParams.calldata?.substring(0, 20) + '...',
-                }
-              }
-              return undefined
-            })(),
-            // This error means swap cannot proceed - txRequests is required
-            willCauseValidationFailure: true,
-          })
-        }
+        // This error means swap cannot proceed - txRequests is required
       }
     } else {
       // This should not happen if finalChainId fallback is working correctly

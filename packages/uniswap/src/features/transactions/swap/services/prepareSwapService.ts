@@ -37,9 +37,6 @@ export function createPrepareSwap(
           function: 'prepareSwap',
         },
       })
-      if (process.env.NODE_ENV === 'development') {
-        console.error('[prepareSwap] Error:', error)
-      }
     }
     // always reset the warning service after the action is handled
     ctx.warningService.reset()

@@ -177,9 +177,6 @@ function patchMulticallRecipient(multicallData: string, recipientAddress: string
 
         return callData
       } catch (error) {
-        if (process.env.NODE_ENV === 'development') {
-          console.warn('[Swap] Failed to patch multicall call:', error)
-        }
         return callData
       }
     })
@@ -187,9 +184,6 @@ function patchMulticallRecipient(multicallData: string, recipientAddress: string
     // Re-encode multicall with patched calls
     return multicallIface.encodeFunctionData('multicall', [patchedCalls])
   } catch (error) {
-    if (process.env.NODE_ENV === 'development') {
-      console.warn('[Swap] Failed to patch multicall recipient:', error)
-    }
     return multicallData
   }
 }
@@ -223,16 +217,6 @@ function convertMulticallToExecute(
 
     const decoded = multicallIface.decodeFunctionData('multicall', multicallData)
     const calls = decoded[0]
-
-    // For now, log that we detected multicall but don't convert
-    // The proper solution is to ensure Trading API returns execute format,
-    // or rebuild using Universal Router SDK from the trade object
-    if (process.env.NODE_ENV === 'development') {
-      console.warn(
-        '[Swap] Received multicall calldata - conversion to execute not yet implemented. ' +
-          'Consider using Universal Router SDK to rebuild from trade object.',
-      )
-    }
 
     // Return undefined to fall back to original data
     // TODO: Implement proper conversion using Universal Router SDK
@@ -283,16 +267,8 @@ function fixUniversalRouterExecuteData({
       // The total amount needed = sum of all amountIn values in all exactInput calls.
       // Universal Router requires direct ERC20 approval (not just Permit2 approval).
       const totalAmountIn = getTotalAmountInFromMulticall(normalized)
-      if (totalAmountIn && process.env.NODE_ENV === 'development') {
-        console.log(
-          `[Swap] Multicall total amountIn: ${totalAmountIn.toString()} (${totalAmountIn.toString() / BigInt(10 ** 18)} tokens)`,
-        )
-      }
       const patched = patchMulticallRecipient(normalized, recipientAddress)
       if (patched !== normalized) {
-        if (process.env.NODE_ENV === 'development') {
-          console.log('[Swap] Patched recipient address in multicall calldata')
-        }
         logger.info(
           'swapSaga',
           'fixUniversalRouterExecuteData',
@@ -307,9 +283,6 @@ function fixUniversalRouterExecuteData({
         return patched
       }
       // If no patching needed, return original multicall data
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[Swap] Using multicall calldata directly (Universal Router supports it)')
-      }
       logger.info(
         'swapSaga',
         'fixUniversalRouterExecuteData',
@@ -359,23 +332,12 @@ function fixUniversalRouterExecuteData({
 function* handleSwapTransactionStep(params: HandleSwapStepParams): SagaGenerator<string> {
   const { trade, step, signature, analytics, onTransactionHash } = params
 
-  if (process.env.NODE_ENV === 'development') {
-    console.log('[Swap] handleSwapTransactionStep: Starting', {
-      stepType: step.type,
-      hasStep: !!step,
-      hasSignature: !!signature,
-    })
-  }
-
   const info = getSwapTransactionInfo({
     trade,
     isFinalStep: analytics.is_final_step,
     swapStartTimestamp: analytics.swap_start_timestamp,
   })
 
-  if (process.env.NODE_ENV === 'development') {
-    console.log('[Swap] handleSwapTransactionStep: Calling getSwapTxRequest')
-  }
   const txRequest = yield* call(getSwapTxRequest, step, signature)
   const deadlineSeconds = typeof (trade as any).deadline === 'number' ? (trade as any).deadline : undefined
   const recipientAddress = (params as HandleSwapStepParams & { address?: string }).address
@@ -417,24 +379,6 @@ function* handleSwapTransactionStep(params: HandleSwapStepParams): SagaGenerator
     recipientAddress,
   })
 
-  if (process.env.NODE_ENV === 'development') {
-    console.log('[Swap] Calldata transformation:', {
-      originalSelector,
-      finalSelector,
-      wasModified,
-      deadlineSeconds,
-      recipientAddress,
-    })
-  }
-
-  if (process.env.NODE_ENV === 'development') {
-    console.log('[Swap] handleSwapTransactionStep: Got txRequest:', {
-      hasTxRequest: !!txRequestFixed,
-      to: txRequestFixed?.to,
-      chainId: txRequestFixed?.chainId,
-    })
-  }
-
   const onModification = ({ hash, data }: VitalTxFields) => {
     sendAnalyticsEvent(SwapEventName.SwapModifiedInWallet, {
       ...analytics,
@@ -447,13 +391,6 @@ function* handleSwapTransactionStep(params: HandleSwapStepParams): SagaGenerator
   // Now that we have the txRequest, we can create a definitive SwapTransactionStep, incase we started with an async step.
   const onChainStep = { ...step, txRequest: txRequestFixed }
   
-  if (process.env.NODE_ENV === 'development') {
-    console.log('[Swap] handleSwapTransactionStep: About to call handleOnChainStep:', {
-      stepType: onChainStep.type,
-      hasTxRequest: !!onChainStep.txRequest,
-    })
-  }
-  
   const hash = yield* call(handleOnChainStep, {
     ...params,
     info,
@@ -463,10 +400,6 @@ function* handleSwapTransactionStep(params: HandleSwapStepParams): SagaGenerator
     onModification,
     allowDuplicativeTx: true, // Allow duplicate transactions for swap - user may want to submit multiple swaps
   })
-
-  if (process.env.NODE_ENV === 'development') {
-    console.log('[Swap] handleSwapTransactionStep: handleOnChainStep returned hash:', hash)
-  }
 
   handleSwapTransactionAnalytics({ ...params, hash })
 
@@ -596,13 +529,6 @@ function* swap(params: SwapParams) {
   
   if (chainSwitchFailed) {
     const error = new Error(`Chain switch failed: unable to switch from chain ${params.startChainId} to chain ${swapChainId}`)
-    if (process.env.NODE_ENV === 'development') {
-      console.error('[Swap] Error: Chain switch failed', {
-        error: error.message,
-        startChainId: params.startChainId,
-        swapChainId,
-      })
-    }
     const onPressRetry = params.getOnPressRetry(error)
     onFailure(error, onPressRetry)
     return
@@ -623,43 +549,22 @@ function* swap(params: SwapParams) {
     }
 
     for (step of steps) {
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[Swap] swap saga: Processing step:', {
-          stepType: step.type,
-          stepIndex: steps.indexOf(step),
-        })
-      }
       switch (step.type) {
         case TransactionStepType.TokenRevocationTransaction:
         case TransactionStepType.TokenApprovalTransaction: {
-          if (process.env.NODE_ENV === 'development') {
-            console.log('[Swap] swap saga: Handling approval step')
-          }
           yield* call(handleApprovalTransactionStep, { address: account.address, step, setCurrentStep })
           break
         }
         case TransactionStepType.Permit2Signature: {
-          if (process.env.NODE_ENV === 'development') {
-            console.log('[Swap] swap saga: Handling permit signature step')
-          }
           signature = yield* call(handleSignatureStep, { address: account.address, step, setCurrentStep })
           break
         }
         case TransactionStepType.Permit2Transaction: {
-          if (process.env.NODE_ENV === 'development') {
-            console.log('[Swap] swap saga: Handling permit transaction step')
-          }
           yield* call(handlePermitTransactionStep, { address: account.address, step, setCurrentStep })
           break
         }
         case TransactionStepType.SwapTransaction:
         case TransactionStepType.SwapTransactionAsync: {
-          if (process.env.NODE_ENV === 'development') {
-            console.log('[Swap] swap saga: Handling swap transaction step:', {
-              stepType: step.type,
-              hasTxRequest: 'txRequest' in step && !!step.txRequest,
-            })
-          }
           requireRouting(trade, [TradingApi.Routing.CLASSIC, TradingApi.Routing.BRIDGE])
           yield* call(handleSwapTransactionStep, {
             address: account.address,
@@ -699,20 +604,11 @@ function* swap(params: SwapParams) {
     if (displayableError) {
       logger.error(displayableError, { tags: { file: 'swapSaga', function: 'swap' } })
     }
-    if (process.env.NODE_ENV === 'development') {
-      console.error('[Swap] swap saga: Error occurred:', {
-        error: displayableError?.message || error instanceof Error ? error.message : String(error),
-        stepType: step?.type,
-      })
-    }
     const onPressRetry = params.getOnPressRetry(displayableError)
     onFailure(displayableError, onPressRetry)
     return
   }
 
-  if (process.env.NODE_ENV === 'development') {
-    console.log('[Swap] swap saga: All steps completed, calling onSuccess')
-  }
   yield* call(onSuccess)
 }
 
@@ -738,18 +634,6 @@ export function useSwapCallback(): SwapCallback {
 
   return useCallback(
     (args: SwapCallbackParams) => {
-      if (process.env.NODE_ENV === 'development') {
-        const hasTxRequests = 'txRequests' in args.swapTxContext && Array.isArray(args.swapTxContext.txRequests)
-        const txRequestCount =
-          'txRequests' in args.swapTxContext && Array.isArray(args.swapTxContext.txRequests)
-            ? args.swapTxContext.txRequests.length
-            : 0
-        console.log('[Swap] swapCallback called', {
-          routing: args.swapTxContext.routing,
-          hasTxRequests,
-          txRequestCount,
-        })
-      }
       const {
         swapTxContext,
         onSuccess,

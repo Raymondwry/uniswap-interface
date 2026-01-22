@@ -69,15 +69,6 @@ function createLegacyEVMSwapInstructionsService(
         alreadyApproved,
       })
 
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[execute] createLegacyEVMSwapInstructionsService - Prepared swapRequestParams:', {
-          deadline: swapRequestParams.deadline,
-          deadlineDate: swapRequestParams.deadline ? new Date(swapRequestParams.deadline * 1000).toLocaleString('zh-CN') : undefined,
-          hasQuote: !!swapRequestParams.quote,
-          simulateTransaction: swapRequestParams.simulateTransaction,
-        })
-      }
-
       if (signatureMissing) {
         return { response: null, unsignedPermit: permitData, swapRequestParams }
       }
@@ -110,14 +101,6 @@ function createBatchedEVMSwapInstructionsService(
         overrideSimulation: true, // always simulate for batched transactions
       })
 
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[execute] createBatchedEVMSwapInstructionsService - Prepared swapRequestParams:', {
-          deadline: swapRequestParams.deadline,
-          deadlineDate: swapRequestParams.deadline ? new Date(swapRequestParams.deadline * 1000).toLocaleString('zh-CN') : undefined,
-          hasQuote: !!swapRequestParams.quote,
-          simulateTransaction: swapRequestParams.simulateTransaction,
-        })
-      }
 
       const response = await swapRepository.fetchSwapData(swapRequestParams)
       // Keep swapRequestParams even when we have a response, so deadline is preserved in swapTxContext
