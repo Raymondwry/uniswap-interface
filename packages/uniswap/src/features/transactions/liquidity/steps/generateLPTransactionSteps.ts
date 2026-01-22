@@ -30,7 +30,16 @@ import { createRevocationTransactionStep } from 'uniswap/src/features/transactio
 import { OnChainTransactionFields, TransactionStep } from 'uniswap/src/features/transactions/steps/types'
 
 export function generateLPTransactionSteps(txContext: LiquidityTxAndGasInfo): TransactionStep[] {
+  console.log('[generateLPTransactionSteps] Called with txContext:', {
+    type: txContext.type,
+    unsigned: 'unsigned' in txContext ? txContext.unsigned : undefined,
+    hasTxRequest: !!txContext.txRequest,
+    hasCreatePositionRequestArgs: 'createPositionRequestArgs' in txContext ? !!txContext.createPositionRequestArgs : false,
+    hasPermit: 'permit' in txContext ? !!txContext.permit : false,
+  })
+
   const isValidLP = isValidLiquidityTxContext(txContext)
+  console.log('[generateLPTransactionSteps] isValidLP:', isValidLP)
 
   if (isValidLP) {
     if (txContext.type === LiquidityTransactionType.Collect) {
@@ -133,22 +142,92 @@ export function generateLPTransactionSteps(txContext: LiquidityTxAndGasInfo): Tr
         }
       case 'create':
       case 'increase':
-        if (txContext.unsigned) {
-          return orderIncreaseLiquiditySteps({
-            revokeToken0,
-            revokeToken1,
-            approvalToken0,
-            approvalToken1,
-            approvalPositionToken,
-            permit: createPermit2SignatureStep(txContext.permit.typedData),
-            token0PermitTransaction: undefined,
-            token1PermitTransaction: undefined,
-            increasePosition:
-              txContext.type === 'increase'
-                ? createIncreasePositionAsyncStep(txContext.increasePositionRequestArgs)
-                : createCreatePositionAsyncStep(txContext.createPositionRequestArgs),
-          })
+        // For HashKey chains, we use async steps even if unsigned is false
+        // because we don't have txRequest from Trading API
+        const createPositionRequestArgs = txContext.type === 'create' ? txContext.createPositionRequestArgs : undefined
+        const chainIdNum = createPositionRequestArgs?.chainId ? Number(createPositionRequestArgs.chainId) : undefined
+        const isHashKeyChain = chainIdNum === 177 || chainIdNum === 133
+        
+        // Use async step if unsigned OR if HashKey chain without txRequest
+        const unsigned = 'unsigned' in txContext ? txContext.unsigned : false
+        const shouldUseAsyncStep = unsigned || (isHashKeyChain && !txContext.txRequest && createPositionRequestArgs)
+        
+        console.log('[generateLPTransactionSteps] create/increase step decision:', {
+          type: txContext.type,
+          unsigned,
+          isHashKeyChain,
+          hasTxRequest: !!txContext.txRequest,
+          hasCreatePositionRequestArgs: !!createPositionRequestArgs,
+          shouldUseAsyncStep,
+        })
+        
+        if (shouldUseAsyncStep) {
+          // For HashKey chains without permit, we still use async step but without permit signature
+          const permit = 'permit' in txContext ? txContext.permit : undefined
+          
+          if (txContext.type === 'create') {
+            // If we have permit, use the first flow type, otherwise use the third flow type (no permit, async step)
+            if (permit) {
+              const permitStep = createPermit2SignatureStep(permit.typedData)
+              return orderIncreaseLiquiditySteps({
+                revokeToken0,
+                revokeToken1,
+                approvalToken0,
+                approvalToken1,
+                approvalPositionToken,
+                permit: permitStep,
+                token0PermitTransaction: undefined,
+                token1PermitTransaction: undefined,
+                increasePosition: createCreatePositionAsyncStep(createPositionRequestArgs),
+              })
+            } else {
+              return orderIncreaseLiquiditySteps({
+                revokeToken0,
+                revokeToken1,
+                approvalToken0,
+                approvalToken1,
+                approvalPositionToken,
+                permit: undefined,
+                token0PermitTransaction: undefined,
+                token1PermitTransaction: undefined,
+                increasePosition: createCreatePositionAsyncStep(createPositionRequestArgs),
+              })
+            }
+          } else {
+            const increasePositionRequestArgs = 'increasePositionRequestArgs' in txContext ? txContext.increasePositionRequestArgs : undefined
+            if (permit) {
+              const permitStep = createPermit2SignatureStep(permit.typedData)
+              return orderIncreaseLiquiditySteps({
+                revokeToken0,
+                revokeToken1,
+                approvalToken0,
+                approvalToken1,
+                approvalPositionToken,
+                permit: permitStep,
+                token0PermitTransaction: undefined,
+                token1PermitTransaction: undefined,
+                increasePosition: createIncreasePositionAsyncStep(increasePositionRequestArgs),
+              })
+            } else {
+              return orderIncreaseLiquiditySteps({
+                revokeToken0,
+                revokeToken1,
+                approvalToken0,
+                approvalToken1,
+                approvalPositionToken,
+                permit: undefined,
+                token0PermitTransaction: undefined,
+                token1PermitTransaction: undefined,
+                increasePosition: createIncreasePositionAsyncStep(increasePositionRequestArgs),
+              })
+            }
+          }
         } else {
+          if (!txContext.txRequest) {
+            console.error('[generateLPTransactionSteps] txRequest is required for non-async step but is missing')
+            return []
+          }
+          const txRequest = txContext.txRequest as ValidatedTransactionRequest
           const steps = orderIncreaseLiquiditySteps({
             revokeToken0,
             revokeToken1,
@@ -158,7 +237,7 @@ export function generateLPTransactionSteps(txContext: LiquidityTxAndGasInfo): Tr
             permit: undefined,
             token0PermitTransaction: token0PermitTransactionStep,
             token1PermitTransaction: token1PermitTransactionStep,
-            increasePosition: createIncreasePositionStep(txContext.txRequest, txContext.sqrtRatioX96),
+            increasePosition: createIncreasePositionStep(txRequest, txContext.sqrtRatioX96),
           })
 
           if (txContext.canBatchTransactions) {

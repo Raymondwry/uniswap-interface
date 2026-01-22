@@ -261,7 +261,7 @@ function CreatePositionContent({
             currencyInputs={currencyInputs}
             setCurrencyInputs={setCurrencyInputs}
             initialPositionState={{
-              fee: initialInputs.fee ?? undefined,
+              fee: initialInputs.fee, // fee is already guaranteed to have default value from useLiquidityUrlState
               hook: initialInputs.hook ?? undefined,
               protocolVersion: initialProtocolVersion,
             }}

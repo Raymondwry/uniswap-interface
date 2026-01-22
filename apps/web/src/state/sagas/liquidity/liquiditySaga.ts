@@ -78,10 +78,17 @@ function* getLiquidityTxRequest(
     | CollectFeesTransactionStep,
   signature: string | undefined,
 ) {
+  console.log('[getLiquidityTxRequest] Called with:', {
+    stepType: step.type,
+    hasSignature: !!signature,
+    signatureLength: signature?.length,
+  })
+
   if (
     step.type === TransactionStepType.IncreasePositionTransaction ||
     step.type === TransactionStepType.DecreasePositionTransaction
   ) {
+    console.log('[getLiquidityTxRequest] Using sync step, returning txRequest directly')
     return {
       txRequest: step.txRequest,
       sqrtRatioX96: step.sqrtRatioX96,
@@ -91,17 +98,29 @@ function* getLiquidityTxRequest(
     step.type === TransactionStepType.MigratePositionTransaction ||
     step.type === TransactionStepType.CollectFeesTransactionStep
   ) {
+    console.log('[getLiquidityTxRequest] Using migrate/collect step, returning txRequest directly')
     return { txRequest: step.txRequest }
   }
 
-  if (!signature) {
-    throw new Error('Signature required for async increase position transaction step')
+  // For async steps, signature may be required for Permit2 flows
+  // But for HashKey Chain, we build transactions on-chain without Permit2, so signature is optional
+  // Pass undefined if signature is not available, and let the step handle it
+  console.log('[getLiquidityTxRequest] Calling async step.getTxRequest', {
+    hasSignature: !!signature,
+    signatureLength: signature?.length,
+  })
+  try {
+    const { txRequest, sqrtRatioX96 } = yield* call(step.getTxRequest, signature)
+    console.log('[getLiquidityTxRequest] Async step returned:', {
+      hasTxRequest: !!txRequest,
+      hasSqrtRatioX96: !!sqrtRatioX96,
+    })
+    invariant(txRequest !== undefined, 'txRequest must be defined')
+    return { txRequest, sqrtRatioX96 }
+  } catch (e) {
+    console.error('[getLiquidityTxRequest] Error calling async step.getTxRequest:', e)
+    throw e
   }
-
-  const { txRequest, sqrtRatioX96 } = yield* call(step.getTxRequest, signature)
-  invariant(txRequest !== undefined, 'txRequest must be defined')
-
-  return { txRequest, sqrtRatioX96 }
 }
 
 interface HandlePositionStepParams extends Omit<HandleOnChainStepParams, 'step' | 'info'> {
@@ -252,9 +271,12 @@ function* modifyLiquidity(params: LiquidityParams & { steps: TransactionStep[] }
     disableOneClickSwap,
   } = params
 
+  console.log('[modifyLiquidity] Starting with', steps.length, 'steps:', steps.map(s => s.type))
+
   let signature: string | undefined
 
   for (const step of steps) {
+    console.log('[modifyLiquidity] Processing step:', step.type)
     try {
       switch (step.type) {
         case TransactionStepType.TokenRevocationTransaction:
@@ -263,7 +285,9 @@ function* modifyLiquidity(params: LiquidityParams & { steps: TransactionStep[] }
           break
         }
         case TransactionStepType.Permit2Signature: {
+          console.log('[modifyLiquidity] Handling Permit2Signature step')
           signature = yield* call(handleSignatureStep, { address: account.address, step, setCurrentStep })
+          console.log('[modifyLiquidity] Permit2Signature completed, signature:', signature ? `${signature.substring(0, 20)}...` : 'undefined')
           break
         }
         case TransactionStepType.Permit2Transaction: {
@@ -276,6 +300,10 @@ function* modifyLiquidity(params: LiquidityParams & { steps: TransactionStep[] }
         case TransactionStepType.MigratePositionTransaction:
         case TransactionStepType.MigratePositionTransactionAsync:
         case TransactionStepType.CollectFeesTransactionStep:
+          console.log('[modifyLiquidity] Handling position transaction step:', step.type, {
+            hasSignature: !!signature,
+            signatureLength: signature?.length,
+          })
           yield* call(handlePositionTransactionStep, {
             address: account.address,
             step,
@@ -284,6 +312,7 @@ function* modifyLiquidity(params: LiquidityParams & { steps: TransactionStep[] }
             signature,
             analytics,
           })
+          console.log('[modifyLiquidity] Position transaction step completed')
           break
         case TransactionStepType.IncreasePositionTransactionBatched:
           yield* call(handlePositionTransactionBatchedStep, {
@@ -300,12 +329,15 @@ function* modifyLiquidity(params: LiquidityParams & { steps: TransactionStep[] }
         }
       }
     } catch (e) {
+      console.error('[modifyLiquidity] Error processing step:', step.type, e)
       const displayableError = getDisplayableError({ error: e, step, flow: 'liquidity' })
 
       if (displayableError) {
+        console.error('[modifyLiquidity] Displayable error:', displayableError)
         logger.error(displayableError, { tags: { file: 'liquiditySaga', function: 'modifyLiquidity' } })
         onFailure(e)
       } else {
+        console.error('[modifyLiquidity] No displayable error, calling onFailure without error')
         onFailure()
       }
 
@@ -313,18 +345,34 @@ function* modifyLiquidity(params: LiquidityParams & { steps: TransactionStep[] }
     }
   }
 
+  console.log('[modifyLiquidity] All steps completed successfully, calling onSuccess')
   yield* call(onSuccess)
 }
 
 function* liquidity(params: LiquidityParams) {
+  console.log('[liquiditySaga] liquidity function called', {
+    type: params.liquidityTxContext.type,
+    chainId: params.liquidityTxContext.action.currency0Amount.currency.chainId,
+    startChainId: params.startChainId,
+  })
+
   const { liquidityTxContext, startChainId, selectChain, onFailure } = params
 
+  console.log('[liquiditySaga] Generating transaction steps...')
   const steps = yield* call(generateLPTransactionSteps, liquidityTxContext)
+  console.log('[liquiditySaga] Generated steps:', steps.length, steps.map(s => s.type))
   params.setSteps(steps)
 
   // Switch chains if needed
   const token0ChainId = liquidityTxContext.action.currency0Amount.currency.chainId
   const token1ChainId = liquidityTxContext.action.currency1Amount.currency.chainId
+
+  console.log('[liquiditySaga] Chain check:', {
+    token0ChainId,
+    token1ChainId,
+    startChainId,
+    needsChainSwitch: startChainId !== undefined && token0ChainId !== startChainId,
+  })
 
   if (token0ChainId !== token1ChainId) {
     logger.error('Tokens must be on the same chain', {
@@ -334,12 +382,19 @@ function* liquidity(params: LiquidityParams) {
     return undefined
   }
 
-  if (token0ChainId !== startChainId) {
+  // Only switch chains if startChainId is defined and different from token chain
+  // If startChainId is undefined, assume we're already on the correct chain
+  if (startChainId !== undefined && token0ChainId !== startChainId) {
+    console.log('[liquiditySaga] Switching chain from', startChainId, 'to', token0ChainId)
     const chainSwitched = yield* call(selectChain, token0ChainId)
     if (!chainSwitched) {
+      console.error('[liquiditySaga] Chain switch failed')
       onFailure()
       return undefined
     }
+    console.log('[liquiditySaga] Chain switch successful')
+  } else if (startChainId === undefined) {
+    console.log('[liquiditySaga] startChainId is undefined, skipping chain switch check')
   }
 
   return yield* modifyLiquidity({

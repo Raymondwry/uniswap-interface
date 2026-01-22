@@ -80,6 +80,8 @@ export function createDefaultStore() {
                 // ignore swapSaga actions as they contain non-serializable trade objects
                 'swapSaga/trigger',
                 'planSaga/trigger',
+                // ignore liquiditySaga actions as they contain non-serializable functions (selectChain, callbacks)
+                'liquiditySaga/trigger',
               ],
             },
       })
