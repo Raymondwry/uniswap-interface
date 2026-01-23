@@ -364,7 +364,7 @@ function buildTxRequestFromQuote(
   }
   const isHashKey = chainId === UniverseChainId.HashKey || chainId === UniverseChainId.HashKeyTestnet
   const gasLimitBuffered = getGasLimitWithBuffer(quoteWithGasEstimate.gasUseEstimate, {
-    multiplier: isHashKey ? 1.6 : 1.2,
+    multiplier: isHashKey ? 2.0 : 1.5,
   })
   if (gasLimitBuffered) {
     txRequest.gasLimit = gasLimitBuffered
@@ -391,7 +391,7 @@ function buildTxRequestFromTrade(
       : undefined
 
   const gasLimitBuffered = getGasLimitWithBuffer((trade as any)?.quote?.quote?.gasUseEstimate, {
-    multiplier: chainId === UniverseChainId.HashKey || chainId === UniverseChainId.HashKeyTestnet ? 1.6 : 1.2,
+    multiplier: chainId === UniverseChainId.HashKey || chainId === UniverseChainId.HashKeyTestnet ? 2.0 : 1.2,
   })
 
   const { calldata, value } = V3SwapRouter.swapCallParameters(trade, {
