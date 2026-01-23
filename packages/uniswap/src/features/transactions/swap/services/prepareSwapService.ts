@@ -203,7 +203,7 @@ function createHandleEventAction(ctx: HandleEventActionContext): (action: Review
         if (onExecuteSwapDirectly) {
           onExecuteSwapDirectly()
         } else {
-        setScreen(TransactionScreen.Review)
+          setScreen(TransactionScreen.Review)
         }
         break
     }

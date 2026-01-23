@@ -45,9 +45,7 @@ export function useWebFORNudgeGateEnabled(): boolean {
   // If wallet can pay gas in any token (e.g., Porto wallet), don't show the nudge
   const canPayGasInAnyToken = getCanPayGasInAnyToken?.() ?? false
 
-  const result = isWebFORNudgeEnabled && isPortfolioZero && !canPayGasInAnyToken
-
-  return result
+  return isWebFORNudgeEnabled && isPortfolioZero && !canPayGasInAnyToken
 }
 
 export function useIsWebFORNudgeEnabled(): boolean {

@@ -11,7 +11,5 @@ export function useIsPortfolioZero(): boolean {
     svmAddress: wallet.svmAccount?.address,
   })
 
-  const result = !isTestnetModeEnabled && balanceUSD === 0
-
-  return result
+  return !isTestnetModeEnabled && balanceUSD === 0
 }

@@ -520,9 +520,7 @@ function* swap(params: SwapParams) {
     setSteps,
   } = params
   const { trade } = swapTxContext
-
   const swapChainId = swapTxContext.trade.inputAmount.currency.chainId
-  
   const { chainSwitchFailed } = yield* call(handleSwitchChains, {
     selectChain: params.selectChain,
     startChainId: params.startChainId,
@@ -673,6 +671,7 @@ export function useSwapCallback(): SwapCallback {
         onPending,
       } = args
       const { trade, gasFee } = swapTxContext
+      const chainId = trade.inputAmount.currency.chainId
 
       const isClassicSwap = isClassic(swapTxContext)
       const isBatched = isClassicSwap && swapTxContext.txRequests && swapTxContext.txRequests.length > 1
@@ -692,8 +691,7 @@ export function useSwapCallback(): SwapCallback {
         swapStartTimestamp,
       })
 
-      const account = isSVMChain(trade.inputAmount.currency.chainId) ? wallet.svmAccount : wallet.evmAccount
-
+      const account = isSVMChain(chainId) ? wallet.svmAccount : wallet.evmAccount
       if (!account || !isSignerMnemonicAccountDetails(account)) {
         throw new Error('No account found')
       }
