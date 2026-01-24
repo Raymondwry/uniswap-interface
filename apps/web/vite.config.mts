@@ -349,12 +349,16 @@ export default defineConfig(({ mode }) => {
       port: DEFAULT_PORT,
       host: '0.0.0.0',
       allowedHosts: 'all',
-      hmr: {
-        host: '10.225.81.22',
-        port: 8888,
-        clientPort: 8888,
-        protocol: 'ws',
-      },
+      // HMR configuration - use default if custom host is not accessible
+      // Only use custom HMR config if VITE_HMR_HOST is set
+      hmr: process.env.VITE_HMR_HOST
+        ? {
+            host: process.env.VITE_HMR_HOST,
+            port: Number.parseInt(process.env.VITE_HMR_PORT || '8888', 10),
+            clientPort: Number.parseInt(process.env.VITE_HMR_CLIENT_PORT || process.env.VITE_HMR_PORT || '8888', 10),
+            protocol: 'ws',
+          }
+        : undefined, // Use default HMR config
       strictPort: false, // 如果端口被占用，自动尝试下一个可用端口
       proxy: {
         ...(ENABLE_PROXY ? {

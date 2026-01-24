@@ -279,8 +279,19 @@ export async function checkWalletDelegation(
   // HKSWAP: check_delegation API doesn't support HashKey chains (177, 133)
   // Since HSKSwap only supports HashKey chains, always return empty response
   const HASHKEY_CHAIN_IDS = [177, 133] // UniverseChainId.HashKey and UniverseChainId.HashKeyTestnet
-  const hasOnlyHashKeyChains = chainIds.every((chainId) => HASHKEY_CHAIN_IDS.includes(chainId as number))
-  if (hasOnlyHashKeyChains) {
+  
+  // If no wallet addresses provided, return empty response
+  if (!walletAddresses || walletAddresses.length === 0) {
+    return {
+      requestId: '',
+      delegationDetails: {},
+    }
+  }
+
+  // HKSWAP: If any HashKey chain is in the list, return empty response
+  // This is because HSKSwap only supports HashKey chains, and the API doesn't support them
+  const hasHashKeyChain = chainIds.some((chainId) => HASHKEY_CHAIN_IDS.includes(chainId as number))
+  if (hasHashKeyChain) {
     return {
       requestId: '',
       delegationDetails: {},
@@ -293,8 +304,8 @@ export async function checkWalletDelegation(
   // Filter out HashKey chains (177, 133) - check_delegation API doesn't support them
   const supportedChainIds = evmChainIds.filter((chainId) => !HASHKEY_CHAIN_IDS.includes(chainId as number))
 
-  // If no wallet addresses provided or if no supported chains after filtering, return empty response
-  if (!walletAddresses || walletAddresses.length === 0 || supportedChainIds.length === 0) {
+  // If no supported chains after filtering (e.g., only HashKey chains), return empty response
+  if (supportedChainIds.length === 0) {
     return {
       requestId: '',
       delegationDetails: {},
