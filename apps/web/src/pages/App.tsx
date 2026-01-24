@@ -15,7 +15,6 @@ import DarkModeQueryParamReader from 'theme/components/DarkModeQueryParamReader'
 import { useSporeColors } from 'ui/src'
 import { getChainInfo } from 'uniswap/src/features/chains/chainInfo'
 import { UniverseChainId } from 'uniswap/src/features/chains/types'
-import { initializeScrollWatcher } from 'uniswap/src/components/modals/ScrollLock'
 import { EXTENSION_PASSKEY_AUTH_PATH } from 'uniswap/src/features/passkey/constants'
 import Trace from 'uniswap/src/features/telemetry/Trace'
 import { isPathBlocked } from 'utils/blockedPaths'
@@ -37,10 +36,6 @@ export default function App() {
   const currentPage = getCurrentPageFromLocation(pathname)
 
   useFeatureFlagUrlOverrides()
-
-  useEffect(() => {
-    initializeScrollWatcher()
-  }, [])
 
   // 检查当前链是否在允许的链列表中
   useEffect(() => {

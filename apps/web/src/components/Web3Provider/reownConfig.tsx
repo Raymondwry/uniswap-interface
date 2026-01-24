@@ -14,11 +14,42 @@ import { WagmiAdapter } from '@reown/appkit-adapter-wagmi'
 import React from 'react'
 // biome-ignore lint/style/noRestrictedImports: wagmi account hook needed for wallet integration
 import { useAccount as useWagmiAccount } from 'wagmi'
+import { UNISWAP_WEB_URL } from 'uniswap/src/constants/urls'
 
 if (process.env.REACT_APP_WALLET_CONNECT_PROJECT_ID === undefined) {
   throw new Error('REACT_APP_WALLET_CONNECT_PROJECT_ID must be a defined environment variable')
 }
 const WALLET_CONNECT_PROJECT_ID = process.env.REACT_APP_WALLET_CONNECT_PROJECT_ID
+
+// Helper function to get a safe icon URL that avoids CORS issues
+// When accessed from HTTPS sites, we should not use HTTP localhost URLs
+function getSafeIconUrl(): string {
+  if (typeof window === 'undefined') {
+    return `${UNISWAP_WEB_URL}/icons/hskswap-icon.svg`
+  }
+  
+  const origin = window.location.origin
+  
+  // Check if we're in an iframe (e.g., embedded in third-party sites)
+  const isInIframe = window.self !== window.top || (window.location.ancestorOrigins && window.location.ancestorOrigins.length > 0)
+  
+  // If in iframe or origin is not our domain, use production URL to avoid CORS issues
+  if (isInIframe || (!origin.includes('localhost') && !origin.includes('127.0.0.1') && !origin.includes('uniswap.org'))) {
+    return `${UNISWAP_WEB_URL}/icons/hskswap-icon.svg`
+  }
+  
+  // For local development (not in iframe), use current origin
+  return `${origin}/icons/hskswap-icon.svg`
+}
+
+// Helper function to get a safe URL that avoids CORS issues
+function getSafeUrl(): string {
+  if (typeof window === 'undefined') {
+    return UNISWAP_WEB_URL
+  }
+  
+  return window.location.origin
+}
 
 // Use Reown AppKit's predefined HashKey networks with explicit RPC URLs
 // (matching hsk-staking-launchpad - they use default hashkey network, but we override RPC for reliability)
@@ -81,18 +112,14 @@ const modal = createAppKit({
   enableAuthLogger: false,
   enableReconnect: false,
   enableCoinbase: false,
-  // metadata: Reown AppKit will automatically use window.location for metadata
-  // If needed, uncomment and customize:
-  // metadata: {
-  //   name: 'HSKSwap',
-  //   description: 'HSKSwap Interface',
-  //   url: typeof window !== 'undefined' ? window.location.origin : UNISWAP_WEB_URL,
-  //   icons: [
-  //     typeof window !== 'undefined'
-  //       ? `${window.location.origin}/icons/hskswap-icon.svg`
-  //       : `${UNISWAP_WEB_URL}icons/hskswap-icon.svg`
-  //   ],
-  // },
+  // Explicitly set metadata to avoid CORS issues when accessed from HTTPS sites
+  // This prevents the library from using HTTP localhost URLs when accessed from HTTPS origins
+  metadata: {
+    name: 'HSKSwap',
+    description: 'HSKSwap Interface',
+    url: getSafeUrl(),
+    icons: [getSafeIconUrl()],
+  },
   features: {
     analytics: false,
     email: false,

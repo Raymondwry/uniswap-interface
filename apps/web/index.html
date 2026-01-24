@@ -25,8 +25,6 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin/>
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 
-    <link rel="preload" href="/fonts/Basel-Grotesk-Book.woff2" as="font" type="font/woff2" crossorigin />
-    <link rel="preload" href="/fonts/Basel-Grotesk-Medium.woff2" as="font" type="font/woff2" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Aleo:wght@400;500;600;700&display=swap" rel="stylesheet" />
 
     <style>
@@ -36,33 +34,9 @@
       }
 
       /**
-        Explicitly load Basel var from public/ so it does not block LCP's critical path.
+        HSKSwap uses Aleo font from Google Fonts instead of Basel-Grotesk.
+        The font is loaded via the link tag above.
       */
-      @font-face {
-        font-family: 'Basel';
-        font-weight: 535;
-        font-style: normal;
-        font-display: block;
-        src: 
-          url('/fonts/Basel-Grotesk-Medium.woff2') format('woff2'),
-          url('/fonts/Basel-Grotesk-Medium.woff') format('woff');
-      }
-
-      @font-face {
-        font-family: 'Basel';
-        font-weight: 485;
-        font-style: normal;
-        font-display: block;
-        src: 
-          url('/fonts/Basel-Grotesk-Book.woff2') format('woff2'),
-          url('/fonts/Basel-Grotesk-Book.woff') format('woff');
-      }
-
-      @supports (font-variation-settings: normal) {
-        * {
-          font-family: 'Aleo', sans-serif;
-        }
-      }
 
       html,
       body {

@@ -20,7 +20,6 @@
     "https://buy.moonpay.com/",
     "https://verify.walletconnect.com/",
     "https://verify.walletconnect.org/",
-    "https://id.porto.sh",
     "https://wrapped.uniswap.org"
   ],
   "mediaSrc": ["self", "*"],

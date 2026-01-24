@@ -13,6 +13,8 @@ import {
   getIsSessionServiceEnabled,
   getIsSessionUpgradeAutoEnabled,
   useIsSessionServiceEnabled,
+  StatsigClient,
+  StatsigProvider as StatsigProviderBase,
 } from '@universe/gating'
 import { createChallengeSolverService, createSessionInitializationService } from '@universe/sessions'
 import { QueryClientPersistProvider } from 'components/PersistQueryClient'
@@ -44,6 +46,7 @@ import { ReactRouterUrlProvider } from 'uniswap/src/contexts/UrlContext'
 import { initializePortfolioQueryOverrides } from 'uniswap/src/data/rest/portfolioBalanceOverrides'
 import { StatsigProviderWrapper } from 'uniswap/src/features/gating/StatsigProviderWrapper'
 import { LocalizationContextProvider } from 'uniswap/src/features/language/LocalizationContext'
+import { initializeScrollWatcher } from 'uniswap/src/components/modals/ScrollLock'
 import i18n from 'uniswap/src/i18n'
 import { initializeDatadog } from 'uniswap/src/utils/datadog'
 import { localDevDatadogEnabled } from 'utilities/src/environment/constants'
@@ -173,9 +176,21 @@ function StatsigProvider({ children }: PropsWithChildren) {
   //   </StatsigProviderWrapper>
   // )
 
-  // HKSWAP: Return children directly without Statsig initialization
-  return <>{children}</>
+  // HKSWAP: Create a mock StatsigClient that returns false for all feature flags
+  // This ensures useFeatureFlag hooks work without actually initializing Statsig
+  const mockClient = useMemo(() => {
+    // Create a minimal mock client that satisfies the StatsigProvider requirements
+    // All feature flags will return false by default
+    return StatsigClient.instance('dummy-key-for-hkswap')
+  }, [])
+
+  // Return StatsigProvider with mock client to satisfy hooks that require StatsigContext
+  return <StatsigProviderBase client={mockClient}>{children}</StatsigProviderBase>
 }
+
+// Initialize scroll watcher once at app startup (before React renders)
+// This ensures it only runs once, even in React StrictMode
+initializeScrollWatcher()
 
 const container = document.getElementById('root') as HTMLElement
 

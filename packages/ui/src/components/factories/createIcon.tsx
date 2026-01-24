@@ -44,7 +44,7 @@ export function createIcon({
   getIcon: (props: SvgPropsWithRef) => JSX.Element
   defaultFill?: string
 }): readonly [GeneratedIcon, GeneratedIcon] {
-  const Icon = forwardRef<Svg, GeneratedIconProps>(({ color, hoverColor: hoverColorProp, ...propsIn }, ref) => {
+  const Icon = forwardRef<Svg, GeneratedIconProps>(({ color, hoverColor: hoverColorProp, forwardedRef, ...propsIn }, ref) => {
     const [hover, setHover] = useState(false)
     const renderColor = color ?? defaultFill ?? (isWebPlatform ? 'currentColor' : undefined)
     const hoverColor = hoverColorProp ?? renderColor
@@ -94,7 +94,7 @@ export function createIcon({
   const IconPlain = forwardRef<Svg, IconProps>((props, ref) => {
     // Flatten style array on web - Animated.createAnimatedComponent may wrap styles in an array
     // which causes React DOM to throw: "Failed to set an indexed property [0] on 'CSSStyleDeclaration'"
-    const { style, ...rest } = props as SvgPropsWithRef
+    const { style, forwardedRef, ...rest } = props as SvgPropsWithRef & { forwardedRef?: unknown }
     const flatStyle = isWebPlatform && Array.isArray(style) ? Object.assign({}, ...style) : style
 
     return getIcon({

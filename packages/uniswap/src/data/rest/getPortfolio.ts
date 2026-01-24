@@ -96,8 +96,8 @@ export const getPortfolioQuery = <TSelectData = GetPortfolioResponse>({
     queryKey: [ReactQueryCacheKey.GetPortfolio, accountAddressesByPlatform, inputWithoutModifierAndWalletAccount],
     queryFn: async () => {
       // HKSWAP: Disabled GetPortfolio API - not needed for hkswap
-      // Return undefined to prevent API calls
-      return Promise.resolve(undefined)
+      // Return empty GetPortfolioResponse instead of undefined to satisfy React Query requirements
+      return new GetPortfolioResponse({})
       
       // const log = createLogger('getPortfolio.ts', 'queryFn', '[REST-ITBU]')
 

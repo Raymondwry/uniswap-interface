@@ -5,6 +5,7 @@ import { config } from 'uniswap/src/config'
 import { tradingApiVersionPrefix, uniswapUrls } from 'uniswap/src/constants/urls'
 import { createUniswapFetchClient } from 'uniswap/src/data/apiClients/createUniswapFetchClient'
 import { filterChainIdsByPlatform } from 'uniswap/src/features/chains/utils'
+import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 
 // Use UNISWAP_GATEWAY_DNS for quote API only, keep other endpoints using default Trading API
@@ -275,11 +276,25 @@ export async function checkWalletDelegation(
 ): Promise<TradingApi.WalletCheckDelegationResponseBody> {
   const { walletAddresses, chainIds } = params
 
+  // HKSWAP: check_delegation API doesn't support HashKey chains (177, 133)
+  // Since HSKSwap only supports HashKey chains, always return empty response
+  const HASHKEY_CHAIN_IDS = [177, 133] // UniverseChainId.HashKey and UniverseChainId.HashKeyTestnet
+  const hasOnlyHashKeyChains = chainIds.every((chainId) => HASHKEY_CHAIN_IDS.includes(chainId as number))
+  if (hasOnlyHashKeyChains) {
+    return {
+      requestId: '',
+      delegationDetails: {},
+    }
+  }
+
   // Filter out SVM chains - check_delegation only supports EVM chains
   const evmChainIds = filterChainIdsByPlatform(chainIds, Platform.EVM)
 
-  // If no wallet addresses provided or if no EVM chains after filtering, return empty response
-  if (!walletAddresses || walletAddresses.length === 0 || evmChainIds.length === 0) {
+  // Filter out HashKey chains (177, 133) - check_delegation API doesn't support them
+  const supportedChainIds = evmChainIds.filter((chainId) => !HASHKEY_CHAIN_IDS.includes(chainId as number))
+
+  // If no wallet addresses provided or if no supported chains after filtering, return empty response
+  if (!walletAddresses || walletAddresses.length === 0 || supportedChainIds.length === 0) {
     return {
       requestId: '',
       delegationDetails: {},
@@ -287,22 +302,22 @@ export async function checkWalletDelegation(
   }
 
   // Ensure batchThreshold is at least the number of chain IDs
-  const effectiveBatchThreshold = Math.max(batchThreshold, evmChainIds.length)
+  const effectiveBatchThreshold = Math.max(batchThreshold, supportedChainIds.length)
 
-  const totalCombinations = walletAddresses.length * evmChainIds.length
+  const totalCombinations = walletAddresses.length * supportedChainIds.length
 
   // If under threshold, make a single request
   if (totalCombinations <= effectiveBatchThreshold) {
     return await TradingApiClient.checkWalletDelegationWithoutBatching({
       walletAddresses,
-      chainIds: evmChainIds,
+      chainIds: supportedChainIds,
     })
   }
 
   // Split into batches
   const walletChunks = chunkWalletAddresses({
     walletAddresses,
-    chainIds: evmChainIds,
+    chainIds: supportedChainIds,
     batchThreshold: effectiveBatchThreshold,
   })
 
@@ -310,7 +325,7 @@ export async function checkWalletDelegation(
   const batchPromises = walletChunks.map((chunk) =>
     TradingApiClient.checkWalletDelegationWithoutBatching({
       walletAddresses: chunk,
-      chainIds: evmChainIds,
+      chainIds: supportedChainIds,
     }),
   )
 
