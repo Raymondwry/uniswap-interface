@@ -138,39 +138,43 @@ function GraphqlProviders({ children }: { children: React.ReactNode }) {
     </ApolloProvider>
   )
 }
+// HKSWAP: Disabled Statsig feature flags - not needed for hkswap
 function StatsigProvider({ children }: PropsWithChildren) {
-  const account = useAccount()
+  // const account = useAccount()
 
-  const statsigUser: StatsigUser = useMemo(
-    () => ({
-      userID: getDeviceId(),
-      customIDs: { address: account.address ?? '' },
-    }),
-    [account.address],
-  )
+  // const statsigUser: StatsigUser = useMemo(
+  //   () => ({
+  //     userID: getDeviceId(),
+  //     customIDs: { address: account.address ?? '' },
+  //   }),
+  //   [account.address],
+  // )
 
-  useEffect(() => {
-    datadogRum.setUserProperty('connection', {
-      type: account.connector?.type,
-      name: account.connector?.name,
-      rdns: account.connector?.id,
-      address: account.address,
-      status: account.status,
-    })
-  }, [account])
+  // useEffect(() => {
+  //   datadogRum.setUserProperty('connection', {
+  //     type: account.connector?.type,
+  //     name: account.connector?.name,
+  //     rdns: account.connector?.id,
+  //     address: account.address,
+  //     status: account.status,
+  //   })
+  // }, [account])
 
-  const onStatsigInit = () => {
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    if (!isDevEnv() || localDevDatadogEnabled) {
-      initializeDatadog('web').catch(() => undefined)
-    }
-  }
+  // const onStatsigInit = () => {
+  //   // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+  //   if (!isDevEnv() || localDevDatadogEnabled) {
+  //     initializeDatadog('web').catch(() => undefined)
+  //   }
+  // }
 
-  return (
-    <StatsigProviderWrapper user={statsigUser} onInit={onStatsigInit}>
-      {children}
-    </StatsigProviderWrapper>
-  )
+  // return (
+  //   <StatsigProviderWrapper user={statsigUser} onInit={onStatsigInit}>
+  //     {children}
+  //   </StatsigProviderWrapper>
+  // )
+
+  // HKSWAP: Return children directly without Statsig initialization
+  return <>{children}</>
 }
 
 const container = document.getElementById('root') as HTMLElement

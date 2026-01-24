@@ -98,9 +98,6 @@ export const getFeatureFlaggedHeaders = (
     case TRADING_API_PATHS.order:
       addHeaderIfEnabled({ headers, key: TradingApiHeaders.Erc20EthEnabled, enabled: ethAsErc20UniswapXEnabled })
       break
-    case TRADING_API_PATHS.swap7702:
-      addHeaderIfEnabled({ headers, key: TradingApiHeaders.UnirouteEnabled, enabled: unirouteEnabled })
-      break
   }
   return headers
 }
