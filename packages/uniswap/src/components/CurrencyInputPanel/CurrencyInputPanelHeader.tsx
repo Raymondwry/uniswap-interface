@@ -12,6 +12,7 @@ import { PRESET_PERCENTAGES } from 'uniswap/src/components/CurrencyInputPanel/Am
 import { DefaultTokenOptions } from 'uniswap/src/components/CurrencyInputPanel/DefaultTokenOptions/DefaultTokenOptions'
 import { TokenRate } from 'uniswap/src/components/CurrencyInputPanel/TokenRate'
 import type { CurrencyInfo } from 'uniswap/src/features/dataApi/types'
+import { useActiveAddresses } from 'uniswap/src/features/accounts/store/hooks'
 import { ElementName } from 'uniswap/src/features/telemetry/constants'
 import { usePriceUXEnabled } from 'uniswap/src/features/transactions/swap/hooks/usePriceUXEnabled'
 import { CurrencyField } from 'uniswap/src/types/currency'
@@ -38,6 +39,8 @@ export function CurrencyInputPanelHeader({
 }: CurrencyInputPanelHeaderProps): JSX.Element | null {
   const priceUXEnabled = usePriceUXEnabled()
   const [isHovering, setIsHovering] = useState(false)
+  const { evmAddress, svmAddress } = useActiveAddresses()
+  const isWalletConnected = Boolean(evmAddress || svmAddress)
 
   const isOutput = currencyField === CurrencyField.OUTPUT
   const showFlippableRate = priceUXEnabled && isOutput && !!currencyInfo
@@ -61,8 +64,9 @@ export function CurrencyInputPanelHeader({
     return null
   }
 
+  // HKSWAP: Only show input presets (25%, 50%, 75%, 100%) when wallet is connected
   const showInputPresets =
-    (isWebAppDesktop || isExtensionApp) && currencyField === CurrencyField.INPUT && currencyInfo
+    (isWebAppDesktop || isExtensionApp) && currencyField === CurrencyField.INPUT && currencyInfo && isWalletConnected
 
   return (
     <Flex
@@ -90,11 +94,12 @@ export function CurrencyInputPanelHeader({
           <AmountInputPresets presets={PRESET_PERCENTAGES} renderPreset={renderPreset} />
         </Flex>
       )}
-      {showDefaultTokenOptions && isWebAppDesktop && (
+      {/* HKSWAP: Disabled default token options (hover to show ETH, USDC, USDT icons) */}
+      {/* {showDefaultTokenOptions && isWebAppDesktop && (
         <Flex position="absolute" right={0} top={-spacing.spacing6}>
           <DefaultTokenOptions currencyField={CurrencyField.OUTPUT} />
         </Flex>
-      )}
+      )} */}
       {showFlippableRate && isWebAppDesktop && <TokenRate />}
     </Flex>
   )

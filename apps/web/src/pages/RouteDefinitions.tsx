@@ -129,12 +129,14 @@ export const routes: RouteDefinition[] = [
       return args.browserRouterEnabled && args.hash ? <Navigate to={args.hash.replace('#', '')} replace /> : <Swap />
     },
   }),
+  // HKSWAP: Disabled explore routes
   createRouteDefinition({
     path: '/explore',
     getTitle: getExploreTitle,
     getDescription: getExploreDescription,
     nestedPaths: [':tab', ':chainName', ':tab/:chainName'],
     getElement: () => <RedirectExplore />,
+    enabled: () => false, // HKSWAP: Disable explore page
   }),
   // Special case: redirect WSOL to SOL TDP, as directly trading WSOL is not supported currently.
   createRouteDefinition({
@@ -142,6 +144,7 @@ export const routes: RouteDefinition[] = [
     getTitle: () => i18n.t('common.buyAndSell'),
     getDescription: () => StaticTitlesAndDescriptions.TDPDescription,
     getElement: () => <Navigate to="/explore/tokens/solana/NATIVE" replace />,
+    enabled: () => false, // HKSWAP: Disable explore routes
   }),
   createRouteDefinition({
     path: '/explore/tokens/:chainName/:tokenAddress',
@@ -152,24 +155,28 @@ export const routes: RouteDefinition[] = [
         <TokenDetails />
       </Suspense>
     ),
+    enabled: () => false, // HKSWAP: Disable explore routes
   }),
   createRouteDefinition({
     path: '/tokens',
     getTitle: getExploreTitle,
     getDescription: getExploreDescription,
     getElement: () => <Navigate to="/explore/tokens" replace />,
+    enabled: () => false, // HKSWAP: Disable tokens routes (redirect to explore)
   }),
   createRouteDefinition({
     path: '/tokens/:chainName',
     getTitle: getExploreTitle,
     getDescription: getExploreDescription,
     getElement: () => <RedirectExplore />,
+    enabled: () => false, // HKSWAP: Disable tokens routes (redirect to explore)
   }),
   createRouteDefinition({
     path: '/tokens/:chainName/:tokenAddress',
     getTitle: () => StaticTitlesAndDescriptions.DetailsPageBaseTitle,
     getDescription: () => StaticTitlesAndDescriptions.TDPDescription,
     getElement: () => <RedirectExplore />,
+    enabled: () => false, // HKSWAP: Disable tokens routes (redirect to explore)
   }),
   createRouteDefinition({
     path: '/explore/pools/:chainName/:poolAddress',
@@ -180,6 +187,7 @@ export const routes: RouteDefinition[] = [
         <PoolDetails />
       </Suspense>
     ),
+    enabled: () => false, // HKSWAP: Disable explore pools routes
   }),
   createRouteDefinition({
     path: '/explore/auctions/:chainName/:id',

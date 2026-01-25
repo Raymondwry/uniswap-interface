@@ -163,7 +163,13 @@ export function useUniversalRouterSwapCallback({
       let gasLimit: BigNumber
     try {
       const gasEstimate = await provider.estimateGas(tx)
-      gasLimit = calculateGasMargin(gasEstimate)
+      // HKSWAP: Use larger gas margin for HashKey chains to prevent gas insufficient errors
+      if (isHashKeyChain) {
+        // For HashKey chains, use 2.5x multiplier instead of default 1.2x
+        gasLimit = gasEstimate.mul(250).div(100)
+      } else {
+        gasLimit = calculateGasMargin(gasEstimate)
+      }
       } catch (gasError) {
         // HashKey RPC may revert during estimation (e.g., STF) even when tx would succeed.
         // Fallback to buffered quote gasUseEstimate to allow wallet confirmation.
@@ -172,26 +178,27 @@ export function useUniversalRouterSwapCallback({
             (trade as any)?.quote?.quote?.gasUseEstimate !== undefined
               ? Number((trade as any).quote.quote.gasUseEstimate)
               : undefined
-        const fallbackGas = gasUseEstimate ? Math.ceil(gasUseEstimate * 1.6) : 700000
-        gasLimit = BigNumber.from(fallbackGas)
-        logger.warn('useUniversalRouter', 'useUniversalRouterSwapCallback', 'Estimate gas failed, using fallback for HashKey', {
-          fallbackGas,
-          gasUseEstimate,
-          error: gasError,
-        })
-      } else {
-        sendAnalyticsEvent(SwapEventName.SwapEstimateGasCallFailed, {
-          ...formatCommonPropertiesForTrade({ trade, allowedSlippage: options.slippageTolerance }),
-          ...analyticsContext,
-          client_block_number: blockNumber,
-          txRequest: tx,
-          isAutoSlippage,
-        })
-        const wrappedError = new Error('gas error', { cause: gasError })
-        logger.warn('useUniversalRouter', 'useUniversalRouterSwapCallback', 'Failed to estimate gas', wrappedError)
-        throw new GasEstimationError()
+          // HKSWAP: Increased fallback gas multiplier from 1.6 to 2.5 and default from 700000 to 1000000
+          const fallbackGas = gasUseEstimate ? Math.ceil(gasUseEstimate * 2.5) : 1000000
+          gasLimit = BigNumber.from(fallbackGas)
+          logger.warn('useUniversalRouter', 'useUniversalRouterSwapCallback', 'Estimate gas failed, using fallback for HashKey', {
+            fallbackGas,
+            gasUseEstimate,
+            error: gasError,
+          })
+        } else {
+          sendAnalyticsEvent(SwapEventName.SwapEstimateGasCallFailed, {
+            ...formatCommonPropertiesForTrade({ trade, allowedSlippage: options.slippageTolerance }),
+            ...analyticsContext,
+            client_block_number: blockNumber,
+            txRequest: tx,
+            isAutoSlippage,
+          })
+          const wrappedError = new Error('gas error', { cause: gasError })
+          logger.warn('useUniversalRouter', 'useUniversalRouterSwapCallback', 'Failed to estimate gas', wrappedError)
+          throw new GasEstimationError()
+        }
       }
-    }
 
       const response = await (async () => {
         try {
