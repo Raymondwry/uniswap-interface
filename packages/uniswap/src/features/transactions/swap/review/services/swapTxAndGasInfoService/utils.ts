@@ -364,8 +364,9 @@ function buildTxRequestFromQuote(
   }
   const isHashKey = chainId === UniverseChainId.HashKey || chainId === UniverseChainId.HashKeyTestnet
   // HKSWAP: Increased gas limit multiplier for HashKey chains from 2.0 to 2.5 to prevent gas insufficient errors
+  // Increased multiplier for all chains from 1.5 to 2.0 to handle complex multi-hop swaps with nested calls
   const gasLimitBuffered = getGasLimitWithBuffer(quoteWithGasEstimate.gasUseEstimate, {
-    multiplier: isHashKey ? 2.5 : 1.5,
+    multiplier: isHashKey ? 2.5 : 2.0,
   })
   if (gasLimitBuffered) {
     txRequest.gasLimit = gasLimitBuffered
@@ -392,8 +393,9 @@ function buildTxRequestFromTrade(
       : undefined
 
   // HKSWAP: Increased gas limit multiplier for HashKey chains from 2.0 to 2.5 to prevent gas insufficient errors
+  // Increased multiplier for all chains from 1.2 to 2.0 to handle complex multi-hop swaps with nested calls
   const gasLimitBuffered = getGasLimitWithBuffer((trade as any)?.quote?.quote?.gasUseEstimate, {
-    multiplier: chainId === UniverseChainId.HashKey || chainId === UniverseChainId.HashKeyTestnet ? 2.5 : 1.2,
+    multiplier: chainId === UniverseChainId.HashKey || chainId === UniverseChainId.HashKeyTestnet ? 2.5 : 2.0,
   })
 
   const { calldata, value } = V3SwapRouter.swapCallParameters(trade, {
