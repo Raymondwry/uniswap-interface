@@ -157,7 +157,7 @@ export function TransactionSettings({
               <Popover.Trigger>
                 <TouchableArea
                   testID={testID ?? TestID.TransactionSettings}
-                  width={32}
+                  width={IconLabel || CustomSettingsButton ? undefined : 32}
                   height={32}
                   onPress={onPressTransactionSettings}
                 >

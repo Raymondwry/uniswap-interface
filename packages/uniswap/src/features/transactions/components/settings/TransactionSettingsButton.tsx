@@ -38,21 +38,28 @@ export const TransactionSettingsButton = memo(
 
     return (
       <Flex
-        centered
         row
+        alignItems="center"
+        justifyContent="center"
         backgroundColor={backgroundColor}
-        borderRadius="$roundedFull"
+        borderRadius="$rounded12"
         gap="$spacing4"
         px={IconLabel ? '$spacing8' : '$spacing4'}
         py="$spacing4"
         height={isWebApp ? '$spacing32' : 'auto'}
+        flexShrink={0}
       >
-        {IconLabel}
+        {IconLabel && (
+          <Flex flexShrink={0} alignItems="center">
+            {IconLabel}
+          </Flex>
+        )}
         <Flex
           width={32}
           height={32}
           alignItems="center"
           justifyContent="center"
+          flexShrink={0}
           $platform-web={{
             cursor: 'pointer',
           }}
