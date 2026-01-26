@@ -99,7 +99,7 @@ export const useTabsContent = (): TabsSection[] => {
         },
         {
           label: t('nav.tabs.createPosition'),
-          href: '/positions/create',
+          href: '/positions/create/v3', // 默认链已配置为 HashKey Chain
           internal: true,
         },
       ],

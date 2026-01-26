@@ -292,7 +292,10 @@ function getDefaultChainId({
     return UniverseChainId.Solana
   }
 
-  return isTestnetModeEnabled ? UniverseChainId.Sepolia : UniverseChainId.Mainnet
+  // 默认使用 HashKey Chain
+  // 开发/测试环境：HashKey Testnet (133)
+  // 生产环境：HashKey Mainnet (177)
+  return isTestnetModeEnabled ? UniverseChainId.HashKeyTestnet : UniverseChainId.HashKey
 }
 
 /** Returns all stablecoins for a given chainId. */

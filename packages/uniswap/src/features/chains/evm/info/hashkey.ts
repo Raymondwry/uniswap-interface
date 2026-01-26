@@ -90,7 +90,7 @@ export const HASHKEY_CHAIN_INFO = {
   urlParam: 'hashkey',
   statusPage: undefined,
   tokens,
-  supportsV4: true,
+  supportsV4: false,
   supportsNFTs: true,
   wrappedNativeCurrency: {
     name: 'Wrapped HashKey',
@@ -165,7 +165,7 @@ export const HASHKEY_TESTNET_CHAIN_INFO = {
   urlParam: 'hashkey_testnet',
   statusPage: undefined,
   tokens: testnetTokens,
-  supportsV4: true,
+  supportsV4: false,
   supportsNFTs: false,
   wrappedNativeCurrency: {
     name: 'Wrapped HashKey',
