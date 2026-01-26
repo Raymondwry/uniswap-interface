@@ -18,6 +18,41 @@ import { logger } from 'utilities/src/logger/logger'
 
 const NFPMInterface = new Interface(NonfungiblePositionManagerJson.abi)
 
+/**
+ * Check if a chain ID is a HashKey chain
+ */
+function isHashKeyChain(chainId: number | undefined): boolean {
+  return chainId === UniverseChainId.HashKey || chainId === UniverseChainId.HashKeyTestnet
+}
+
+/**
+ * Calculate minimum amounts with slippage tolerance
+ */
+function calculateMinimumAmounts(
+  amount0Desired: string,
+  amount1Desired: string,
+  slippageTolerance: number | undefined,
+): { amount0Min: string; amount1Min: string } {
+  const slippage = slippageTolerance ?? 0.05
+  const slippageMultiplier = BigInt(Math.floor((1 - slippage) * 10000))
+  const divisor = BigInt(10000)
+
+  const amount0Min = (BigInt(amount0Desired) * slippageMultiplier) / divisor
+  const amount1Min = (BigInt(amount1Desired) * slippageMultiplier) / divisor
+
+  return {
+    amount0Min: amount0Min.toString(),
+    amount1Min: amount1Min.toString(),
+  }
+}
+
+/**
+ * Calculate deadline (20 minutes from now)
+ */
+function calculateDeadline(): number {
+  return Math.floor(Date.now() / 1000) + 60 * 20
+}
+
 export interface IncreasePositionTransactionStep extends OnChainTransactionFields {
   // Doesn't require permit
   type: TransactionStepType.IncreasePositionTransaction
@@ -63,22 +98,9 @@ export function createCreatePositionAsyncStep(
 
       // Check if this is a HashKey chain - Trading API doesn't support HashKey chains
       const chainId = createPositionRequestArgs.chainId as number
-      const isHashKeyChain = chainId === UniverseChainId.HashKey || chainId === UniverseChainId.HashKeyTestnet
-      
-      console.log('[createCreatePositionAsyncStep] getTxRequest called', {
-        chainId,
-        isHashKeyChain,
-        hasSignature: !!signature,
-        signatureLength: signature?.length,
-      })
+      const isHashKey = isHashKeyChain(chainId)
 
-      if (isHashKeyChain) {
-        console.log('[createCreatePositionAsyncStep] HashKey chain detected, building on-chain transaction', {
-          chainId,
-          protocol: createPositionRequestArgs.protocol,
-          hasSignature: !!signature,
-        })
-
+      if (isHashKey) {
         // For HashKey chains, build the transaction on-chain instead of using Trading API
         // Only support V3 protocol (V4 is not supported on HashKey chains)
         // Note: HashKey Chain doesn't use Permit2, so signature is not required
@@ -89,25 +111,11 @@ export function createCreatePositionAsyncStep(
 
         try {
           const positionManagerAddress = getV3PositionManagerAddress(chainId)
-          console.log('[createCreatePositionAsyncStep] Position Manager address:', positionManagerAddress)
           if (!positionManagerAddress) {
             throw new Error(`Position Manager address not found for chain ${chainId}`)
           }
 
           const { position, walletAddress, initialPrice, independentAmount, independentToken, slippageTolerance, initialDependentAmount } = createPositionRequestArgs
-          console.log('[createCreatePositionAsyncStep] Request args:', {
-            walletAddress,
-            initialPrice,
-            independentAmount,
-            independentToken,
-            slippageTolerance,
-            initialDependentAmount,
-            position: position ? {
-              tickLower: position.tickLower,
-              tickUpper: position.tickUpper,
-              pool: position.pool,
-            } : undefined,
-          })
           
           if (!position?.pool || !position.tickLower || !position.tickUpper) {
             throw new Error('Missing required position parameters')
@@ -134,38 +142,24 @@ export function createCreatePositionAsyncStep(
           
           // If both amounts are 0, this is an error
           if (amount0Desired === '0' && amount1Desired === '0') {
-            console.error('[createCreatePositionAsyncStep] Both amounts are zero!', {
-              independentAmount,
-              initialDependentAmount,
-              independentToken,
-            })
             throw new Error('Both amounts cannot be zero. Please provide initialDependentAmount for new pools.')
           }
 
-          console.log('[createCreatePositionAsyncStep] Calculated amounts:', {
+          // Calculate minimum amounts with slippage tolerance
+          const { amount0Min, amount1Min } = calculateMinimumAmounts(
             amount0Desired,
             amount1Desired,
-            token0,
-            token1,
-            fee,
-            tickLower,
-            tickUpper,
-          })
-
-          // Calculate minimum amounts with slippage tolerance (default 5% if not provided)
-          const slippage = slippageTolerance ?? 0.05
-          const amount0Min = BigInt(amount0Desired) * BigInt(Math.floor((1 - slippage) * 10000)) / BigInt(10000)
-          const amount1Min = BigInt(amount1Desired) * BigInt(Math.floor((1 - slippage) * 10000)) / BigInt(10000)
+            slippageTolerance,
+          )
 
           // Calculate deadline (20 minutes from now)
-          const deadline = Math.floor(Date.now() / 1000) + 60 * 20
+          const deadline = calculateDeadline()
 
           // Build multicall data
           const multicallData: string[] = []
 
           // Step 1: createAndInitializePoolIfNecessary (if initialPrice is provided, pool needs to be created)
           if (initialPrice) {
-            console.log('[createCreatePositionAsyncStep] Adding createAndInitializePoolIfNecessary step')
             multicallData.push(
               NFPMInterface.encodeFunctionData('createAndInitializePoolIfNecessary', [
                 token0,
@@ -177,7 +171,6 @@ export function createCreatePositionAsyncStep(
           }
 
           // Step 2: mint (add liquidity)
-          console.log('[createCreatePositionAsyncStep] Adding mint step')
           multicallData.push(
             NFPMInterface.encodeFunctionData('mint', [
               {
@@ -203,13 +196,6 @@ export function createCreatePositionAsyncStep(
             value: '0x0',
             chainId,
           }
-
-          console.log('[createCreatePositionAsyncStep] Built txRequest:', {
-            to: txRequest.to,
-            chainId: txRequest.chainId,
-            dataLength: txRequest.data?.length,
-            multicallSteps: multicallData.length,
-          })
 
           // Get sqrtRatioX96 from initialPrice if available
           const sqrtRatioX96 = initialPrice

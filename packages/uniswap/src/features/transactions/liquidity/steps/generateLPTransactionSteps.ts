@@ -1,4 +1,5 @@
 import { CurrencyAmount } from '@uniswap/sdk-core'
+import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { createCollectFeesStep } from 'uniswap/src/features/transactions/liquidity/steps/collectFees'
 import { orderCollectFeesSteps } from 'uniswap/src/features/transactions/liquidity/steps/collectFeesSteps'
 import { orderDecreaseLiquiditySteps } from 'uniswap/src/features/transactions/liquidity/steps/decreaseLiquiditySteps'
@@ -28,18 +29,10 @@ import { createPermit2SignatureStep } from 'uniswap/src/features/transactions/st
 import { createPermit2TransactionStep } from 'uniswap/src/features/transactions/steps/permit2Transaction'
 import { createRevocationTransactionStep } from 'uniswap/src/features/transactions/steps/revoke'
 import { OnChainTransactionFields, TransactionStep } from 'uniswap/src/features/transactions/steps/types'
+import { ValidatedTransactionRequest } from 'uniswap/src/features/transactions/types/transactionRequests'
 
 export function generateLPTransactionSteps(txContext: LiquidityTxAndGasInfo): TransactionStep[] {
-  console.log('[generateLPTransactionSteps] Called with txContext:', {
-    type: txContext.type,
-    unsigned: 'unsigned' in txContext ? txContext.unsigned : undefined,
-    hasTxRequest: !!txContext.txRequest,
-    hasCreatePositionRequestArgs: 'createPositionRequestArgs' in txContext ? !!txContext.createPositionRequestArgs : false,
-    hasPermit: 'permit' in txContext ? !!txContext.permit : false,
-  })
-
   const isValidLP = isValidLiquidityTxContext(txContext)
-  console.log('[generateLPTransactionSteps] isValidLP:', isValidLP)
 
   if (isValidLP) {
     if (txContext.type === LiquidityTransactionType.Collect) {
@@ -146,20 +139,12 @@ export function generateLPTransactionSteps(txContext: LiquidityTxAndGasInfo): Tr
         // because we don't have txRequest from Trading API
         const createPositionRequestArgs = txContext.type === 'create' ? txContext.createPositionRequestArgs : undefined
         const chainIdNum = createPositionRequestArgs?.chainId ? Number(createPositionRequestArgs.chainId) : undefined
-        const isHashKeyChain = chainIdNum === 177 || chainIdNum === 133
+        const isHashKeyChain =
+          chainIdNum === UniverseChainId.HashKey || chainIdNum === UniverseChainId.HashKeyTestnet
         
         // Use async step if unsigned OR if HashKey chain without txRequest
         const unsigned = 'unsigned' in txContext ? txContext.unsigned : false
         const shouldUseAsyncStep = unsigned || (isHashKeyChain && !txContext.txRequest && createPositionRequestArgs)
-        
-        console.log('[generateLPTransactionSteps] create/increase step decision:', {
-          type: txContext.type,
-          unsigned,
-          isHashKeyChain,
-          hasTxRequest: !!txContext.txRequest,
-          hasCreatePositionRequestArgs: !!createPositionRequestArgs,
-          shouldUseAsyncStep,
-        })
         
         if (shouldUseAsyncStep) {
           // For HashKey chains without permit, we still use async step but without permit signature
@@ -224,7 +209,6 @@ export function generateLPTransactionSteps(txContext: LiquidityTxAndGasInfo): Tr
           }
         } else {
           if (!txContext.txRequest) {
-            console.error('[generateLPTransactionSteps] txRequest is required for non-async step but is missing')
             return []
           }
           const txRequest = txContext.txRequest as ValidatedTransactionRequest

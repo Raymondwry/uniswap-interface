@@ -45,6 +45,13 @@ import { logger } from 'utilities/src/logger/logger'
 import { ONE_SECOND_MS } from 'utilities/src/time/time'
 
 /**
+ * Check if a chain ID is a HashKey chain
+ */
+function isHashKeyChain(chainId: number | undefined): boolean {
+  return chainId === UniverseChainId.HashKey || chainId === UniverseChainId.HashKeyTestnet
+}
+
+/**
  * @internal - exported for testing
  */
 export function generateAddLiquidityApprovalParams({
@@ -271,10 +278,10 @@ export function generateCreatePositionTxRequest({
   // For HashKey chains, Trading API doesn't support creating LP positions
   // So createCalldata will be undefined, and we'll use async step instead
   const chainId = currencyAmounts.TOKEN0.currency.chainId
-  const isHashKeyChain = chainId === UniverseChainId.HashKey || chainId === UniverseChainId.HashKeyTestnet
+  const isHashKey = isHashKeyChain(chainId)
   
   // For non-HashKey chains, createCalldata is required
-  if (!isHashKeyChain && !createCalldata) {
+  if (!isHashKey && !createCalldata) {
     return undefined
   }
 
@@ -312,7 +319,7 @@ export function generateCreatePositionTxRequest({
   
   // For HashKey chains, allow missing txRequest (will use async step)
   // For other chains, require txRequest unless using permit transactions
-  if (!isHashKeyChain && !txRequest && !(validatedToken0PermitTransaction || validatedToken1PermitTransaction)) {
+  if (!isHashKey && !txRequest && !(validatedToken0PermitTransaction || validatedToken1PermitTransaction)) {
     // Allow missing txRequest if mismatched (unsigned flow using token0PermitTransaction/2)
     return undefined
   }
@@ -323,7 +330,7 @@ export function generateCreatePositionTxRequest({
   // For HashKey chains, get sqrtRatioX96 from poolOrPair if available (V3 pools only)
   // For other chains, get it from createCalldata
   let sqrtRatioX96: string | undefined
-  if (isHashKeyChain && poolOrPair && protocolVersion !== ProtocolVersion.V2) {
+  if (isHashKey && poolOrPair && protocolVersion !== ProtocolVersion.V2) {
     // For V3, poolOrPair is a V3Pool, not a Pair
     const pool = poolOrPair as V3Pool
     sqrtRatioX96 = pool.sqrtRatioX96.toString()
@@ -375,9 +382,6 @@ interface CreatePositionTxContextType {
 const CreatePositionTxContext = createContext<CreatePositionTxContextType | undefined>(undefined)
 
 export function CreatePositionTxContextProvider({ children }: PropsWithChildren): JSX.Element {
-  
-  // Hooks must be called at the top level - cannot be in try-catch
-  console.log('[CreatePositionTxContext] Calling useCreateLiquidityContext...')
   const {
     protocolVersion,
     currencies,
@@ -408,99 +412,30 @@ export function CreatePositionTxContextProvider({ children }: PropsWithChildren)
     // Otherwise, it's V4Pool, return undefined for HashKey chains
     return undefined
   }, [rawPoolOrPair])
-  
-  console.log('[CreatePositionTxContext] useCreateLiquidityContext result:', {
-    protocolVersion,
-    hasCurrencies: !!currencies,
-    hasDisplayCurrencies: !!currencies?.display,
-    ticks,
-    hasPoolOrPair: !!poolOrPair,
-    hasDepositState: !!depositState,
-    creatingPoolOrPair,
-    hasPositionState: !!positionState,
-  })
 
-  console.log('[CreatePositionTxContext] Calling useWallet...')
   const account = useWallet().evmAccount
-  console.log('[CreatePositionTxContext] useWallet result:', {
-    hasEvmAccount: !!account,
-    accountAddress: account?.address,
-  })
 
-  // Safe extraction with error handling
-  console.log('[CreatePositionTxContext] Extracting currencies.display...', {
-    hasCurrencies: !!currencies,
-    currenciesType: typeof currencies,
-    currenciesKeys: currencies ? Object.keys(currencies) : [],
-  })
   if (!currencies?.display) {
-    const error = new TypeError('currencies.display is undefined in CreatePositionTxContext')
-    console.error('[CreatePositionTxContext] ERROR: currencies.display is undefined', {
-      currencies,
-      errorMessage: error.message,
-      errorStack: error.stack,
-    })
-    throw error
+    throw new TypeError('currencies.display is undefined in CreatePositionTxContext')
   }
   
   const { TOKEN0, TOKEN1 } = currencies.display
-  console.log('[CreatePositionTxContext] currencies.display extracted:', {
-    hasTOKEN0: !!TOKEN0,
-    hasTOKEN1: !!TOKEN1,
-    TOKEN0Symbol: TOKEN0?.symbol,
-    TOKEN1Symbol: TOKEN1?.symbol,
-    TOKEN0Address: TOKEN0 && 'address' in TOKEN0 ? TOKEN0.address : undefined,
-    TOKEN1Address: TOKEN1 && 'address' in TOKEN1 ? TOKEN1.address : undefined,
-  })
   
-  console.log('[CreatePositionTxContext] Extracting depositState.exactField...', {
-    hasDepositState: !!depositState,
-    depositStateType: typeof depositState,
-    depositStateKeys: depositState ? Object.keys(depositState) : [],
-  })
   if (!depositState) {
-    const error = new TypeError('depositState is undefined in CreatePositionTxContext')
-    console.error('[CreatePositionTxContext] ERROR: depositState is undefined', {
-      depositState,
-      errorMessage: error.message,
-      errorStack: error.stack,
-    })
-    throw error
+    throw new TypeError('depositState is undefined in CreatePositionTxContext')
   }
   
   const { exactField } = depositState
-  console.log('[CreatePositionTxContext] depositState.exactField:', exactField)
 
   let invalidRange: boolean
   try {
-    console.log('[CreatePositionTxContext] Calculating invalidRange...', {
-      protocolVersion,
-      ticks,
-      ticksLength: ticks?.length,
-    })
     invalidRange = protocolVersion !== ProtocolVersion.V2 && isInvalidRange(ticks?.[0], ticks?.[1])
-    console.log('[CreatePositionTxContext] invalidRange calculated:', invalidRange)
   } catch (error) {
-    console.error('[CreatePositionTxContext] ERROR calculating invalidRange:', error, {
-      errorMessage: error instanceof Error ? error.message : String(error),
-      protocolVersion,
-      ticks,
-    })
     invalidRange = false // Default to false on error
   }
 
   const depositInfoProps = useMemo(() => {
     try {
-      console.log('[CreatePositionTxContext] Building depositInfoProps...', {
-        ticks,
-        hasPoolOrPair: !!poolOrPair,
-        accountAddress: account?.address,
-        TOKEN0: TOKEN0?.symbol,
-        TOKEN1: TOKEN1?.symbol,
-        exactField,
-        protocolVersion,
-        invalidRange,
-      })
       const [tickLower, tickUpper] = ticks || [undefined, undefined]
       const outOfRange = isOutOfRange({
         poolOrPair,
@@ -521,18 +456,6 @@ export function CreatePositionTxContextProvider({ children }: PropsWithChildren)
         skipDependentAmount: protocolVersion === ProtocolVersion.V2 ? false : outOfRange || invalidRange,
       }
     } catch (error) {
-      console.error('[CreatePositionTxContext] ERROR building depositInfoProps:', error, {
-        errorMessage: error instanceof Error ? error.message : String(error),
-        ticks,
-        poolOrPair,
-        account,
-        TOKEN0,
-        TOKEN1,
-        exactField,
-        depositState,
-        protocolVersion,
-        invalidRange,
-      })
       // Return minimal props on error
       return {
         protocolVersion,
@@ -568,42 +491,21 @@ export function CreatePositionTxContextProvider({ children }: PropsWithChildren)
   const [transactionError, setTransactionError] = useState<string | boolean>(false)
 
   // Check if this is a HashKey chain (Trading API doesn't support HashKey chains)
-  const isHashKeyChain = poolOrPair?.chainId === UniverseChainId.HashKey || poolOrPair?.chainId === UniverseChainId.HashKeyTestnet
+  const isHashKey = isHashKeyChain(poolOrPair?.chainId)
 
   // Use on-chain approval check for HashKey chains
   const token0Amount = useMemo(() => {
-    try {
-      const amount = currencyAmounts?.TOKEN0
-      if (!amount || !(amount.currency instanceof Token)) return undefined
-      return amount as CurrencyAmount<Token>
-    } catch (error) {
-      console.error('[CreatePositionTxContext] ERROR calculating token0Amount:', error)
-      return undefined
-    }
+    const amount = currencyAmounts?.TOKEN0
+    if (!amount || !(amount.currency instanceof Token)) return undefined
+    return amount as CurrencyAmount<Token>
   }, [currencyAmounts?.TOKEN0])
 
   const token1Amount = useMemo(() => {
-    try {
-      const amount = currencyAmounts?.TOKEN1
-      if (!amount || !(amount.currency instanceof Token)) return undefined
-      return amount as CurrencyAmount<Token>
-    } catch (error) {
-      console.error('[CreatePositionTxContext] ERROR calculating token1Amount:', error)
-      return undefined
-    }
+    const amount = currencyAmounts?.TOKEN1
+    if (!amount || !(amount.currency instanceof Token)) return undefined
+    return amount as CurrencyAmount<Token>
   }, [currencyAmounts?.TOKEN1])
 
-  // Hook must be called at top level
-  console.log('[CreatePositionTxContext] Calling useOnChainLpApproval...', {
-    hasTOKEN0: !!TOKEN0,
-    hasTOKEN1: !!TOKEN1,
-    TOKEN0IsToken: TOKEN0 instanceof Token,
-    TOKEN1IsToken: TOKEN1 instanceof Token,
-    hasToken0Amount: !!token0Amount,
-    hasToken1Amount: !!token1Amount,
-    accountAddress: account?.address,
-    chainId: poolOrPair?.chainId,
-  })
   const onChainApproval = useOnChainLpApproval({
     token0: TOKEN0 instanceof Token ? TOKEN0 : undefined,
     token1: TOKEN1 instanceof Token ? TOKEN1 : undefined,
@@ -612,22 +514,12 @@ export function CreatePositionTxContextProvider({ children }: PropsWithChildren)
     owner: account?.address,
     chainId: poolOrPair?.chainId,
   })
-  console.log('[CreatePositionTxContext] useOnChainLpApproval result:', {
-    token0NeedsApproval: onChainApproval.token0NeedsApproval,
-    token1NeedsApproval: onChainApproval.token1NeedsApproval,
-    token0NeedsPermit2Approval: onChainApproval.token0NeedsPermit2Approval,
-    token1NeedsPermit2Approval: onChainApproval.token1NeedsPermit2Approval,
-    hasToken0Permit2Allowance: !!onChainApproval.token0Permit2Allowance,
-    hasToken1Permit2Allowance: !!onChainApproval.token1Permit2Allowance,
-    hasPositionManagerAddress: !!onChainApproval.positionManagerAddress,
-    isSyncing: onChainApproval.isSyncing,
-  })
 
   // Build approval transaction requests for HashKey chains based on on-chain check
   // Supports both traditional ERC20 approve and Permit2 authorization
   const hashKeyApprovalCalldata = useMemo(() => {
     try {
-      if (!isHashKeyChain || !onChainApproval.positionManagerAddress || !poolOrPair?.chainId) {
+      if (!isHashKey || !onChainApproval.positionManagerAddress || !poolOrPair?.chainId) {
         return undefined
       }
 
@@ -686,21 +578,10 @@ export function CreatePositionTxContextProvider({ children }: PropsWithChildren)
         // token1PermitTransaction: ...,
       } as TradingApi.CheckApprovalLPResponse | undefined
     } catch (error) {
-      console.error('[CreatePositionTxContext] ERROR building hashKeyApprovalCalldata:', error, {
-        errorMessage: error instanceof Error ? error.message : String(error),
-        errorStack: error instanceof Error ? error.stack : undefined,
-        isHashKeyChain,
-        positionManagerAddress: onChainApproval.positionManagerAddress,
-        chainId: poolOrPair?.chainId,
-        TOKEN0,
-        TOKEN1,
-        token0NeedsPermit2Approval: onChainApproval.token0NeedsPermit2Approval,
-        token1NeedsPermit2Approval: onChainApproval.token1NeedsPermit2Approval,
-      })
       return undefined
     }
   }, [
-    isHashKeyChain,
+    isHashKey,
     onChainApproval.positionManagerAddress,
     onChainApproval.token0NeedsApproval,
     onChainApproval.token1NeedsApproval,
@@ -727,7 +608,7 @@ export function CreatePositionTxContextProvider({ children }: PropsWithChildren)
 
   // For HashKey chains, skip Trading API and use on-chain check
   const shouldEnableTradingApiApprovalQuery =
-    !!addLiquidityApprovalParams && !inputError && !transactionError && !invalidRange && !isHashKeyChain
+    !!addLiquidityApprovalParams && !inputError && !transactionError && !invalidRange && !isHashKey
 
   const {
     data: tradingApiApprovalCalldata,
@@ -742,25 +623,9 @@ export function CreatePositionTxContextProvider({ children }: PropsWithChildren)
   })
 
   // Use on-chain approval data for HashKey chains, Trading API data for others
-  const approvalCalldata = isHashKeyChain ? hashKeyApprovalCalldata : tradingApiApprovalCalldata
+  const approvalCalldata = isHashKey ? hashKeyApprovalCalldata : tradingApiApprovalCalldata
 
-  // Log approval status for debugging
-  if (isHashKeyChain) {
-    console.log('[CreatePositionTxContext] HashKey chain - Using on-chain approval check:', {
-      token0NeedsApproval: onChainApproval.token0NeedsApproval,
-      token1NeedsApproval: onChainApproval.token1NeedsApproval,
-      token0NeedsPermit2Approval: onChainApproval.token0NeedsPermit2Approval,
-      token1NeedsPermit2Approval: onChainApproval.token1NeedsPermit2Approval,
-      hasToken0Permit2Allowance: !!onChainApproval.token0Permit2Allowance,
-      hasToken1Permit2Allowance: !!onChainApproval.token1Permit2Allowance,
-      hasToken0Approval: !!hashKeyApprovalCalldata?.token0Approval,
-      hasToken1Approval: !!hashKeyApprovalCalldata?.token1Approval,
-      positionManagerAddress: onChainApproval.positionManagerAddress,
-      isSyncing: onChainApproval.isSyncing,
-    })
-  }
-
-  if (approvalError && !isHashKeyChain) {
+  if (approvalError && !isHashKey) {
     const message = parseErrorMessageTitle(approvalError, { defaultTitle: 'unknown CheckLpApprovalQuery' })
     logger.error(message, {
       tags: { file: 'CreatePositionTxContext', function: 'useEffect' },
@@ -809,12 +674,12 @@ export function CreatePositionTxContextProvider({ children }: PropsWithChildren)
 
   // For HashKey chains, we don't require approvalCalldata from Trading API
   // For other chains, approvalCalldata is required
-  const requiresApprovalCalldata = !isHashKeyChain
+  const requiresApprovalCalldata = !isHashKey
 
   // For HashKey chains, Trading API doesn't support creating LP positions
   // So we disable the query entirely for HashKey chains
   const isQueryEnabled =
-    !isHashKeyChain && // Disable Trading API query for HashKey chains
+    !isHashKey && // Disable Trading API query for HashKey chains
     !isUserCommittedToCreate &&
     !inputError &&
     !transactionError &&
@@ -921,28 +786,6 @@ export function CreatePositionTxContextProvider({ children }: PropsWithChildren)
     canBatchTransactions,
   ])
 
-  // Debug logging for HashKey chains (moved after txInfo definition)
-  useEffect(() => {
-    if (isHashKeyChain) {
-      console.log('[CreatePositionTxContext] HashKey Chain detected:', {
-        chainId: currencyAmounts?.TOKEN0?.currency.chainId,
-        isQueryEnabled,
-        hasCreateCalldataQueryParams: !!createCalldataQueryParams,
-        createCalldataQueryParams: createCalldataQueryParams ? {
-          chainId: createCalldataQueryParams.chainId,
-          protocol: createCalldataQueryParams.protocol,
-          independentAmount: createCalldataQueryParams.independentAmount,
-          initialDependentAmount: createCalldataQueryParams.initialDependentAmount,
-          hasInitialPrice: !!createCalldataQueryParams.initialPrice,
-        } : undefined,
-        hasTxInfo: !!txInfo,
-        txInfoType: txInfo?.type,
-        txInfoHasAction: !!txInfo?.action,
-        txInfoHasTxRequest: !!txInfo?.txRequest,
-        txInfoHasCreatePositionRequestArgs: !!txInfo?.createPositionRequestArgs,
-      })
-    }
-  }, [isHashKeyChain, isQueryEnabled, createCalldataQueryParams, txInfo, currencyAmounts])
 
   const value = useMemo(
     (): CreatePositionTxContextType => ({
